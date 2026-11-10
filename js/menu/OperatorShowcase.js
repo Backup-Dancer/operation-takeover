@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js';
-import { getOp } from '../operators.js';
+import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.6.1';
+import { getOp } from '../operators.js?v=iv-3.6.1';
 import { loreFor } from './lore.js?v=iv-3.6.1';
 import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.6.1';
 

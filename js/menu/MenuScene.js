@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createOperatorMesh, attachWeaponToHand } from '../models.js';
+import { createOperatorMesh, attachWeaponToHand } from '../models.js?v=iv-3.6.1';
 import { OperatorShowcase } from './OperatorShowcase.js?v=iv-3.6.1';
 
 const RED = 0xff2a2a;
