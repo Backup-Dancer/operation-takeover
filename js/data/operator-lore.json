@@ -1,0 +1,562 @@
+{
+  "setting": {
+    "title": "Operation: Takeover",
+    "tone": "grounded and tactical; cops-and-robbers energy without camp",
+    "conflict": "Sealed-warrant seizures of high-value sites. One side hardens the site; the other breaches it before the clock.",
+    "mapExample": {
+      "name": "Halcyon Press",
+      "address": "19 Binder Street",
+      "blurb": "Two-floor print shop with a basement ink vault. Site pairs: Ink Vault / Paper Store and Type Studio / Press Floor."
+    },
+    "units": {
+      "attack": {
+        "id": "ashline",
+        "name": "Ashline Entry Command",
+        "shortName": "Ashline",
+        "blurb": "A federal interdiction cell that executes dynamic entries under sealed warrants. Hard breach, flash entry, scout drones and gadget denial.",
+        "colors": {
+          "primary": "#2a2e33",
+          "accent": "#c67636"
+        }
+      },
+      "defend": {
+        "id": "holdfast",
+        "name": "Holdfast Protective Cadre",
+        "shortName": "Holdfast",
+        "blurb": "A clandestine private cadre hired to keep sites locked until the cargo moves. Reinforced doors, trip lines, false footsteps and camera denial.",
+        "colors": {
+          "primary": "#1e2420",
+          "accent": "#6a8f4a"
+        }
+      }
+    }
+  },
+  "operators": [
+    {
+      "id": "forge",
+      "callsign": "FORGE",
+      "realName": "Callen Varga",
+      "callsignMeaning": "He shapes openings the way a smith shapes steel \u2014 thermal ports burned to order.",
+      "age": 38,
+      "origin": {
+        "city": "Ostrava",
+        "country": "Czech Republic"
+      },
+      "side": "attack",
+      "unit": "ashline",
+      "role": "Hard Breacher",
+      "speed": 1,
+      "armor": 3,
+      "difficulty": 3,
+      "difficultyLabel": "Intermediate\u2013Hard",
+      "background": "Varga spent a decade cutting ship hulls and vault doors for a European industrial-rescue firm before Ashline recruited him. He treats a reinforced wall like a workpiece: measure, plant, step off the line, detonate. He is quiet on the radio until the lance is set, then clipped and certain. Two failed civilian extractions early in his career taught him that a bad breach kills the people you came to save.",
+      "personality": "Methodical, dry humor, hates wasted charges. Speaks in short confirmations. Protective of rookies who rush the plant.",
+      "relationship": {
+        "with": "rivet",
+        "type": "soft rivalry",
+        "note": "Faced each other on three Binder-Street-adjacent jobs. Mutual respect for Portcullis vs Hearth Lance. Never spoken face to face."
+      },
+      "whyGadget": "A shaped thermal charge that burns a walkable port through reinforced steel without dropping the whole wall on the room behind it. Varga built the first field prototype after a hydraulic ram jammed mid-entry; Ashline standardized it under his callsign.",
+      "gadget": {
+        "id": "hearthlance",
+        "name": "Hearth Lance",
+        "count": 2,
+        "kind": "hardbreach"
+      },
+      "primaries": [
+        "carbine",
+        "m870"
+      ],
+      "secondaries": [
+        "p45"
+      ],
+      "util": [
+        "breach",
+        "smoke"
+      ],
+      "accent": "#c67636",
+      "tagline": "If it is reinforced, it is unfinished.",
+      "voiceLines": [
+        "Lance set. Clear the line.",
+        "Reinforced does not mean permanent.",
+        "Walk the port. Do not admire it."
+      ],
+      "appearance": {
+        "silhouette": "heavy",
+        "summary": "Plate carrier with copper-accent heat shielding on the shoulders. Thermal-lance cases on the back. Short cropped hair, soot-dark gloves, scar across the left forearm. Boots built for standing still under load.",
+        "colors": [
+          "graphite armor",
+          "copper #c67636 trim",
+          "matte black lance housings"
+        ],
+        "distinctiveGear": [
+          "Hearth Lance cases on socket_back",
+          "copper heat shields",
+          "forearm scar"
+        ]
+      },
+      "selectIdle": "Crouched behind a lance case, checking the remote detonator.",
+      "selectEmote": "Taps the lance casing twice, then a short thumbs-up without looking up."
+    },
+    {
+      "id": "quill",
+      "callsign": "QUILL",
+      "realName": "In\u00e9s Mora",
+      "callsignMeaning": "A quill that writes light through a wall \u2014 sharp, precise, one stroke.",
+      "age": 29,
+      "origin": {
+        "city": "Valencia",
+        "country": "Spain"
+      },
+      "side": "attack",
+      "unit": "ashline",
+      "role": "Flash Entry",
+      "speed": 3,
+      "armor": 1,
+      "difficulty": 2,
+      "difficultyLabel": "Intermediate",
+      "background": "Mora came out of a maritime-boarding unit that cleared freighters in pitch dark. She learned to stun a room without blinding her own stack by sticking charges to the far side of bulkheads. Ashline hired her after a hostage corridor clear where she flashed only the gunmen. She moves light, talks fast, and hates operators who throw flashes into their own doorway.",
+      "personality": "Sharp, competitive, quick to laugh after a clean entry. Impatient with slow stacks. Counts doors out loud.",
+      "relationship": {
+        "with": "glyph",
+        "type": "working pair",
+        "note": "Opens the room; Glyph kills the gadgets that would punish the swing. Mild irritation with Husk, whose Aftersteps have baited her into empty hallways."
+      },
+      "whyGadget": "A surface-stuck dart that fires a cone of light through the wall, door or floor so only the far side whites out. Built so the entry stack never eats its own flash.",
+      "gadget": {
+        "id": "needleburst",
+        "name": "Needleburst",
+        "count": 3,
+        "kind": "flash"
+      },
+      "primaries": [
+        "mp5",
+        "carbine"
+      ],
+      "secondaries": [
+        "p9"
+      ],
+      "util": [
+        "stun",
+        "breach"
+      ],
+      "accent": "#e8c696",
+      "tagline": "Blind the room. Not the stack.",
+      "voiceLines": [
+        "Dart on the far side. Stack on me.",
+        "If you are on this side of the wall, keep your eyes open.",
+        "One stroke. Then we walk."
+      ],
+      "appearance": {
+        "silhouette": "lean / fast",
+        "summary": "Light plate, sand-and-cream accents on collar and gloves. Needleburst quills in a chest bandolier. Short dark hair under a low-profile headset. Soft shoes for quiet approaches.",
+        "colors": [
+          "dark light plate",
+          "sand/cream #e8c696 accents"
+        ],
+        "distinctiveGear": [
+          "Needleburst bandolier",
+          "soft-sole shoes",
+          "low-profile headset"
+        ]
+      },
+      "selectIdle": "Bouncing lightly on the balls of her feet, dart in hand.",
+      "selectEmote": "Flicks a dart into a practice board off-screen, then rolls her shoulder into a ready stance."
+    },
+    {
+      "id": "marrow",
+      "callsign": "MARROW",
+      "realName": "Theodore Okonkwo",
+      "callsignMeaning": "Down to the marrow \u2014 he marks what matters and makes it stay visible.",
+      "age": 34,
+      "origin": {
+        "city": "Lagos",
+        "country": "Nigeria",
+        "basedOut": "London"
+      },
+      "side": "attack",
+      "unit": "ashline",
+      "role": "Intel",
+      "speed": 2,
+      "armor": 2,
+      "difficulty": 1,
+      "difficultyLabel": "Easy\u2013Intermediate",
+      "background": "Okonkwo flew ISR for a West African joint task force before shifting to close-range scout drones. He paints targets so the fireteam sees a trail, not a ghost. He treats intel as a shared resource: if only he knows, the team has already failed. Lost a spotter early in his career to a room he thought was empty; the Stain Dart exists so that never happens again on his watch.",
+      "personality": "Calm, teacherly on the radio, dry when people ignore the paint. Collects floor-plan sketches. Dislikes glory plays.",
+      "relationship": {
+        "with": "shade",
+        "type": "professional friction",
+        "note": "Blindwell is built to erase his feed. Mutual respect; they study each other's radii. Mentors newer Ashline drone pilots off-match."
+      },
+      "whyGadget": "A drone-fired paint round that leaves a visible trail on marked enemies for several seconds. Intel the whole stack can use, not a private picture-in-picture.",
+      "gadget": {
+        "id": "staindart",
+        "name": "Stain Dart",
+        "count": 3,
+        "kind": "intel"
+      },
+      "primaries": [
+        "pdw",
+        "dmr"
+      ],
+      "secondaries": [
+        "p45"
+      ],
+      "util": [
+        "smoke",
+        "stun"
+      ],
+      "accent": "#8fb56a",
+      "tagline": "If I painted it, it is still there.",
+      "voiceLines": [
+        "Drone up. Call your corners.",
+        "Trail is live. Do not lose the paint.",
+        "I see them. Now you do too."
+      ],
+      "appearance": {
+        "silhouette": "medium / technician",
+        "summary": "Scout-drone controller on the left forearm, spare Stain Darts on the chest. Olive cord accents on a dark carrier. Short natural hair, thin beard. Back socket for the folded drone.",
+        "colors": [
+          "dark carrier",
+          "olive #8fb56a cord accents"
+        ],
+        "distinctiveGear": [
+          "forearm drone controller",
+          "folded drone on socket_back",
+          "Stain Dart pouches"
+        ]
+      },
+      "selectIdle": "Guiding an invisible drone with small stick motions, eyes tracking.",
+      "selectEmote": "Snaps fingers once as a paint splash blooms on the backdrop, then points two fingers at the viewer."
+    },
+    {
+      "id": "glyph",
+      "callsign": "GLYPH",
+      "realName": "Sora Han",
+      "callsignMeaning": "A glyph erased \u2014 she unwrites the defender's marks on the site.",
+      "age": 31,
+      "origin": {
+        "city": "Busan",
+        "country": "South Korea"
+      },
+      "side": "attack",
+      "unit": "ashline",
+      "role": "Anti-Gadget",
+      "speed": 2,
+      "armor": 2,
+      "difficulty": 2,
+      "difficultyLabel": "Intermediate",
+      "background": "Han worked electronic warfare for a harbor-security detachment, killing smuggler cameras and trip beacons without frying the ship's own systems. Ashline brought her in when Holdfast trap density started punishing clean entries. She thinks in circles of effect: where the disc dies, what still lives, who walks through the quiet. Soft-spoken until a disc is in the air.",
+      "personality": "Precise, a little cold on first meeting, fiercely loyal once trusted. Annotates site photos with radius overlays. Hates wasted discs on empty rooms.",
+      "relationship": {
+        "with": "briar",
+        "type": "rivalry",
+        "note": "Null Disc versus Bramble Line is a recurring chess match. Entry partner with Quill. Once left Briar a dead disc casing as a calling card."
+      },
+      "whyGadget": "A remote electromagnetic charge that kills traps, jammers, cameras and unexploded charges in its blast without collapsing the structure. The clean counter to a site written full of defenders' marks.",
+      "gadget": {
+        "id": "nulldisc",
+        "name": "Null Disc",
+        "count": 2,
+        "kind": "emp"
+      },
+      "primaries": [
+        "carbine",
+        "mp5"
+      ],
+      "secondaries": [
+        "p9"
+      ],
+      "util": [
+        "mine",
+        "breach"
+      ],
+      "accent": "#7eb0e0",
+      "tagline": "Their marks come off.",
+      "voiceLines": [
+        "Disc out. Wait for the quiet.",
+        "Cameras, traps, charges \u2014 pick one room and erase it.",
+        "When it goes dead, we move."
+      ],
+      "appearance": {
+        "silhouette": "tall lean / tech-pouch",
+        "summary": "Shaved head. Half-face respirator with tinted goggles pushed up. Tall lean build. Dark armor with matte cobalt/cool-blue circuit trim (not glowing). Null Discs and rugged tech pouches on hip and chest.",
+        "colors": [
+          "dark armor",
+          "matte cobalt / cool blue #7eb0e0 circuit trim"
+        ],
+        "distinctiveGear": [
+          "half-face respirator",
+          "goggles on forehead",
+          "shaved head",
+          "stacked Null Discs / tech pouches"
+        ]
+      },
+      "selectIdle": "Spinning a Null Disc on one finger, then catching it flat.",
+      "selectEmote": "Flicks the disc toward the camera; a brief blue EMP shimmer passes across the showcase lights."
+    },
+    {
+      "id": "rivet",
+      "callsign": "RIVET",
+      "realName": "Mara Solis",
+      "callsignMeaning": "She fastens the site shut \u2014 doors and windows become steel.",
+      "age": 41,
+      "origin": {
+        "city": "Monterrey",
+        "country": "Mexico"
+      },
+      "side": "defend",
+      "unit": "holdfast",
+      "role": "Anchor",
+      "speed": 1,
+      "armor": 3,
+      "difficulty": 1,
+      "difficultyLabel": "Easy\u2013Intermediate",
+      "background": "Solis ran site security for high-risk cash-in-transit depots before Holdfast recruited her. She believes a door that still opens is a door that has not been finished. Anchors the objective, talks the least, dies last when the rotate fails. Keeps a handwritten list of every Portcullis that held and every one that got cut \u2014 the second list is shorter, and she remembers each entry.",
+      "personality": "Stoic, maternal toward younger Holdfast, unimpressed by flair. Voice like gravel when the site is breached. Offers coffee after matches she wins; silence after matches she loses.",
+      "relationship": {
+        "with": "forge",
+        "type": "soft rivalry",
+        "note": "Respects anyone who can cut a Portcullis clean. Protective of Briar's trap lanes \u2014 will rotate early to cover a burned Bramble."
+      },
+      "whyGadget": "A steel frame that turns a door or window into a shutter with a narrow two-way gun port. Bullets do not pass the plate; hard-breach tools and demo can cut it. Built so an anchor can hold a line without standing in the open doorway.",
+      "gadget": {
+        "id": "portcullis",
+        "name": "Portcullis",
+        "count": 2,
+        "kind": "shutter"
+      },
+      "primaries": [
+        "m870",
+        "mp5"
+      ],
+      "secondaries": [
+        "p45"
+      ],
+      "util": [
+        "shield",
+        "wire"
+      ],
+      "accent": "#9aa4b2",
+      "tagline": "This door is done talking.",
+      "voiceLines": [
+        "Portcullis up. Watch the slit.",
+        "If it opens, I did not finish it.",
+        "Hold the room. I will hold the hole."
+      ],
+      "appearance": {
+        "silhouette": "heaviest defender",
+        "summary": "Steel-grey plate, reinforced shoulders, Portcullis frames strapped to the back. Short greying hair under a bump helmet. Thick gloves, knee pads scuffed from site work.",
+        "colors": [
+          "steel grey #9aa4b2",
+          "charcoal"
+        ],
+        "distinctiveGear": [
+          "Portcullis frames on socket_back",
+          "bump helmet",
+          "scuffed knee pads"
+        ]
+      },
+      "selectIdle": "Bracing a Portcullis frame against the floor, checking the gun-port alignment.",
+      "selectEmote": "Slams the frame down into place with a metallic clang, then racks the shotgun once."
+    },
+    {
+      "id": "briar",
+      "callsign": "BRIAR",
+      "realName": "Liora Vesek",
+      "callsignMeaning": "Thorny growth \u2014 lines you do not see until they catch you.",
+      "age": 42,
+      "origin": {
+        "city": "Ljubljana",
+        "country": "Slovenia"
+      },
+      "side": "defend",
+      "unit": "holdfast",
+      "role": "Trapper",
+      "speed": 2,
+      "armor": 2,
+      "difficulty": 3,
+      "difficultyLabel": "Hard",
+      "background": "Vesek trained as a climbing and rope-rescue specialist, then turned that feel for tension and anchor points into trip craft. Holdfast pays her to make hallways dishonest. She walks a site barefoot during prep when she can get away with it \u2014 better sense of where feet will fall. Leaves her lines slightly imperfect on purpose so drones catch a glint on a decoy and miss the real one.",
+      "personality": "Playful on the surface, ruthless about placement. Hums while stringing lines. Takes Null Disc wipes personally.",
+      "relationship": {
+        "with": "glyph",
+        "type": "rivalry",
+        "note": "Chess match with Glyph. Sibling-like banter with Husk \u2014 his footsteps sell the lanes she strings. Slight awe of Rivet's patience."
+      },
+      "whyGadget": "A near-invisible taut line between two anchors that stuns and slows anyone who crosses. Drones can catch a faint glint; bullets or a Null Disc kill the anchors. Built for hallways that should feel empty and are not.",
+      "gadget": {
+        "id": "bramble",
+        "name": "Bramble Line",
+        "count": 3,
+        "kind": "trap"
+      },
+      "primaries": [
+        "mp5",
+        "m870"
+      ],
+      "secondaries": [
+        "p9"
+      ],
+      "util": [
+        "demo",
+        "wire"
+      ],
+      "accent": "#6a8f4a",
+      "tagline": "The hallway was never empty.",
+      "voiceLines": [
+        "Line set. Mind your step \u2014 or don't.",
+        "If you see the glint, it is already too late.",
+        "Walk soft. Or walk stunned."
+      ],
+      "appearance": {
+        "silhouette": "stocky / weathered trapper",
+        "summary": "Short auburn copper-red undercut under a tan boonie hat. Heavy freckles, early-40s weathered face, stocky build. Earthy green and tan carrier with forest cord wraps, wire spools and a cutter on the chest rig. Fingerless chalk-scuffed gloves.",
+        "colors": [
+          "earthy green / tan",
+          "forest #6a8f4a cord",
+          "copper-red hair"
+        ],
+        "distinctiveGear": [
+          "boonie hat",
+          "wire spools and cutter on chest",
+          "auburn undercut",
+          "chalked fingerless gloves"
+        ]
+      },
+      "selectIdle": "Drawing an invisible line between two fingers, testing tension.",
+      "selectEmote": "Snaps a line taut; a faint green glint runs across the showcase floor."
+    },
+    {
+      "id": "husk",
+      "callsign": "HUSK",
+      "realName": "Jonah Reed",
+      "callsignMeaning": "An empty shell that still makes noise \u2014 footsteps with nobody home.",
+      "age": 26,
+      "origin": {
+        "city": "Detroit",
+        "country": "USA"
+      },
+      "side": "defend",
+      "unit": "holdfast",
+      "role": "Roamer",
+      "speed": 3,
+      "armor": 1,
+      "difficulty": 2,
+      "difficultyLabel": "Intermediate",
+      "background": "Reed grew up running abandoned factories and learned that sound is a lie you can aim. Holdfast uses him to pull Ashline off angles and buy rotates. He has been shot following his own decoy once \u2014 he tells the story as a joke and means it as a warning. Lightest kit on the roster; lives in the floors above the site.",
+      "personality": "Cocky, restless, excellent under timer pressure. Hates sitting on site. Soft spot for new defenders who freeze when the breach hits.",
+      "relationship": {
+        "with": "quill",
+        "type": "antagonistic banter",
+        "note": "Banter duo with Briar. Has burned Quill with false footsteps enough times that she calls him out by name. Defers to Shade when intel denial is up."
+      },
+      "whyGadget": "A projected burst of footsteps in a chosen direction that does not match camera vision. Built to sell a rotate or bait a swing so the real body can be elsewhere.",
+      "gadget": {
+        "id": "afterstep",
+        "name": "Afterstep",
+        "count": 3,
+        "kind": "decoy"
+      },
+      "primaries": [
+        "mp5",
+        "pdw"
+      ],
+      "secondaries": [
+        "p45"
+      ],
+      "util": [
+        "wire",
+        "impact"
+      ],
+      "accent": "#b08a5a",
+      "tagline": "Hear that? I am already gone.",
+      "voiceLines": [
+        "Footsteps that way. I am this way.",
+        "Chase the sound. Miss the shot.",
+        "Empty shell. Full magazine."
+      ],
+      "appearance": {
+        "silhouette": "lightest / restless",
+        "summary": "Tan scarf or wrap, minimal plate, soft-sole shoes. Afterstep puck on the belt. Messy dark hair, young face, constant half-grin. Looks like he could vault a railing without thinking.",
+        "colors": [
+          "minimal dark plate",
+          "tan #b08a5a wrap"
+        ],
+        "distinctiveGear": [
+          "Afterstep puck on belt",
+          "soft-sole shoes",
+          "tan wrap"
+        ]
+      },
+      "selectIdle": "Pacing a short figure-eight, stopping mid-step as if listening.",
+      "selectEmote": "Tosses an Afterstep puck; ghost footstep echoes play for a beat, then he is already facing the other way."
+    },
+    {
+      "id": "shade",
+      "callsign": "SHADE",
+      "realName": "Nadia Volkov",
+      "callsignMeaning": "She puts the site in shade \u2014 drones and cameras go dark in her radius.",
+      "age": 36,
+      "origin": {
+        "city": "Odessa",
+        "country": "Ukraine"
+      },
+      "side": "defend",
+      "unit": "holdfast",
+      "role": "Intel Denial",
+      "speed": 2,
+      "armor": 2,
+      "difficulty": 2,
+      "difficultyLabel": "Intermediate",
+      "background": "Volkov ran counter-surveillance for NGO evacuations before the work turned private. She denies Ashline the picture of the site: drones to static, cameras painted over, Stain Darts useless in her radius. She does not stop hard-breach tools \u2014 that is Rivet's and Briar's problem \u2014 she stops the eyes. Speaks softly; the static does the shouting.",
+      "personality": "Reserved, exacting, oddly kind to operators who admit they are lost. Keeps a notebook of drone approach vectors. Dislikes loud anchors who give the site away with chatter.",
+      "relationship": {
+        "with": "marrow",
+        "type": "professional cold war",
+        "note": "Quiet alliance with Rivet \u2014 Blindwell buys the Portcullis time. Warns Husk when a drone is already inside the radius so he does not waste an Afterstep."
+      },
+      "whyGadget": "A deployable beacon that turns scout drones and attacker cameras to static inside its radius and blocks Stain Dart paint. Does not stop hard-breach tools. Built so Holdfast can fight in the dark while Ashline flies blind.",
+      "gadget": {
+        "id": "blindwell",
+        "name": "Blindwell",
+        "count": 2,
+        "kind": "jammer"
+      },
+      "primaries": [
+        "mp5",
+        "m870"
+      ],
+      "secondaries": [
+        "p9"
+      ],
+      "util": [
+        "cam",
+        "impact"
+      ],
+      "accent": "#6e6a88",
+      "tagline": "No picture. No paint. No mercy.",
+      "voiceLines": [
+        "Blindwell live. Their eyes are ours now.",
+        "Drone in the radius? It sees nothing.",
+        "Shade the site. Then hold it."
+      ],
+      "appearance": {
+        "silhouette": "hooded / masked / androgynous",
+        "summary": "Hood up over balaclava or lower-face mask; angular dark visor or goggles. Silver-gray hair only if visible at the hood edge. Older / androgynous read. Violet-grey accents on a dark carrier. Blindwell on back, spare on hip.",
+        "colors": [
+          "dark carrier",
+          "violet-grey / violet-charcoal #6e6a88 accents"
+        ],
+        "distinctiveGear": [
+          "hood + balaclava",
+          "angular dark visor/goggles",
+          "Blindwell on socket_back",
+          "spare beacon on hip"
+        ]
+      },
+      "selectIdle": "Planting an invisible beacon at her feet, watching an unseen drone feed die.",
+      "selectEmote": "A pulse of static washes the showcase; her outline stays sharp while the backdrop flickers."
+    }
+  ]
+}

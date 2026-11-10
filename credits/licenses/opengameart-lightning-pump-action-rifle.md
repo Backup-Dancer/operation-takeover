@@ -1,0 +1,135 @@
+# Lightning Pump Action Rifle | OpenGameArt.org
+
+Plain-text transcript of an upstream license page, shipped as markdown so project-site URL rewriting cannot touch third-party `/assets` paths.
+
+Canonical source: https://opengameart.org/content/lightning-pump-action-rifle
+
+Skip to main content
+
+ User login
+
+ Username or e-mail *
+
+ Password *
+
+ Create new account
+
+ Request new password
+
+ Register
+
+ Home
+
+ Browse 2D Art
+
+ 3D Art
+
+ Concept Art
+
+ Textures
+
+ Music
+
+ Sound Effects
+
+ Documents
+
+ Featured Tutorials
+
+ Submit Art
+
+ Collect My Collections
+
+ Art Collections
+
+ Forums
+
+ FAQ
+
+ Leaderboards All Time Total Points
+
+ Comments
+
+ Favorites (All)
+
+ Favorites (2D)
+
+ Favorites (3D)
+
+ Favorites (Concept Art)
+
+ Favorites (Music)
+
+ Favorites (Sound)
+
+ Favorites (Textures)
+
+ Weekly Total Points
+
+ Comments
+
+ Favorites (All)
+
+ Favorites (2D)
+
+ Favorites (3D)
+
+ Favorites (Concept Art)
+
+ Favorites (Music)
+
+ Favorites (Sound)
+
+ Favorites (Textures)
+
+ ❤ Donate
+
+ Search
+
+ Lightning Pump Action Rifle
+
+ Author: 
+ LonesomeDucky
+
+ Monday, March 10, 2025 - 22:19
+
+ Art Type: 
+ 3D Art
+
+ Tags: 
+ weapon
+ weapons
+ gun
+ guns
+ rifle
+ pump action
+ colt
+ lightning
+ PBR
+ low poly
+ low-poly
+ high poly
+ high-poly
+ western
+ cowboy
+ skinned
+ animated
+
+ License(s): 
+ CC0
+
+ Collections: 
+ 3D Assets (CC0)
+ Wolf
+
+ Favorites: 
+ 6
+
+ Preview: 
+
+ A low-poly model of a Colt Lightning-style pump action rifle. Has PBR textures, basic skinning, and basic animations for pumping and pulling the trigger. The zip file contains a .blend file and a .glb file. The blend file includes both the low-poly model and the high-poly model I used to bake the textures from. The .glb is the low-poly version with 3058 tris, 2356 verts, and 2048x2048 textures.
+
+ File(s): 
+ lightning_pump_action.zip 15.3 Mb [ 190 download(s)]
+
+ Log in or register to post comments

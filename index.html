@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Takeover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0c0e">
+<meta name="build" content="iv-3.6.1">
+<title>Operation: Takeover</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="assets/icons/favicon.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js?v=iv-3.6.1",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+<script>
+if (typeof structuredClone !== 'function') {
+  window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
+}
+window.addEventListener('error', function (e) { window.__ivShowError && window.__ivShowError((e && e.message) || 'Script error'); });
+window.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; window.__ivShowError && window.__ivShowError((r && (r.stack || r.message)) || String(r)); });
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(new URL('sw.js', document.baseURI), { scope: './' }).catch(function () {});
+}
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+<div id="scope-overlay" class="hidden">
+  <div class="scope-glass"></div>
+  <div class="scope-reticle" id="scope-reticle"></div>
+</div>
+<div id="flash-white"></div>
+<div id="damage-flash"></div>
+<div id="drone-ov" class="hidden"><div class="scan"></div><div id="drone-label">SCOUT</div></div>
+<div id="cctv-ov" class="hidden"><div class="cctv-scan"></div><div class="cctv-vignette"></div><div id="cctv-name">CAM</div></div>
+
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div id="hud-phase">PREP</div>
+    <div id="hud-timer">0:45</div>
+    <div id="hud-score"><span id="hud-score-atk">0</span><span class="sep">–</span><span id="hud-score-def">0</span></div>
+  </div>
+  <div id="hud-obj">Secure a site and plant the defuser.</div>
+  <div id="hud-health"><div class="bar"><i id="hp-fill"></i></div><span id="hp-n">100</span></div>
+  <div id="hud-ammo"><b id="ammo-clip">30</b><span id="ammo-res">/ 150</span><small id="ammo-wpn">CARBINE</small></div>
+  <div id="hud-toast"></div>
+  <div id="hud-callouts"></div>
+  <div id="crosshair" class="ch-cross"></div>
+  <button type="button" id="hud-prompt" class="hidden" aria-label="Interact"></button>
+  <div id="hud-detonate" class="hidden">
+    <div class="det-title">DETONATOR</div>
+    <div id="det-list"></div>
+  </div>
+  <div id="hud-compass"></div>
+</div>
+
+<div id="touch" class="hidden">
+  <div id="stick-base" class="tctl" data-ctl="stick"><div id="stick-knob"></div></div>
+  <div id="look-zone"></div>
+  <button id="tb-fire" class="tbtn tbtn-fire" data-ctl="fire">FIRE</button>
+  <button id="tb-fire-l" class="tbtn tbtn-fire-l hidden" data-ctl="fireL">FIRE</button>
+  <button id="tb-ads" class="tbtn" data-ctl="ads">ADS</button>
+  <button id="tb-crouch" class="tbtn" data-ctl="crouch">CRCH</button>
+  <button id="tb-prone" class="tbtn" data-ctl="prone">PRONE</button>
+  <button id="tb-leanl" class="tbtn tbtn-lean" data-ctl="leanL">L</button>
+  <button id="tb-leanr" class="tbtn tbtn-lean" data-ctl="leanR">R</button>
+  <button id="tb-reload" class="tbtn" data-ctl="reload">RLD</button>
+  <button id="tb-gadget" class="tbtn tbtn-gad" data-ctl="gadget">GADGET</button>
+  <button id="tb-gadget2" class="tbtn" data-ctl="gadget2">UTIL</button>
+  <button id="tb-drone" class="tbtn" data-ctl="drone">DRONE</button>
+  <button id="tb-cams" class="tbtn hidden" data-ctl="cams">CAM</button>
+  <button id="tb-interact" class="tbtn tbtn-act" data-ctl="interact">ACTION</button>
+  <button id="tb-swap" class="tbtn" data-ctl="swap">SWAP</button>
+  <button id="tb-ping" class="tbtn" data-ctl="ping">PING</button>
+  <button id="tb-rappel" class="tbtn tbtn-act hidden" data-ctl="rappel">RAPPEL</button>
+  <button id="tb-detonate" class="tbtn tbtn-det hidden" data-ctl="detonate">DETONATE</button>
+  <button id="tb-pause" class="tbtn tbtn-top" data-ctl="pause">II</button>
+  <button id="tb-score" class="tbtn tbtn-top" data-ctl="score">TAB</button>
+</div>
+
+<div id="menus">
+  <section id="scr-boot" class="screen">
+    <img class="wordmark" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="400" height="117">
+    <p class="tag">Hold the site. Break the line.</p>
+    <button class="btn primary" data-action="boot">TAP TO START</button>
+    <p class="fine">Add to Home Screen for fullscreen play. Landscape, iPhone or controller.</p>
+  </section>
+
+  <section id="scr-main" class="screen scene-over hidden">
+    <div class="brand">
+      <img class="wordmark sm" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="280" height="82">
+      <p class="tag">5v5 tactical attack &amp; defense</p>
+    </div>
+    <div class="col">
+      <button class="btn primary" data-action="goto" data-arg="setup">PLAY</button>
+      <button class="btn" data-action="goto" data-arg="opselect">OPERATORS</button>
+      <button class="btn" data-action="goto" data-arg="settings">SETTINGS</button>
+      <button class="btn" data-action="goto" data-arg="controls">CONTROLS</button>
+      <button class="btn" data-action="goto" data-arg="credits">CREDITS</button>
+    </div>
+    <p class="fine" id="main-map">Map: Halcyon Press</p>
+  </section>
+
+  <section id="scr-setup" class="screen hidden">
+    <h2>Match Setup</h2>
+    <div class="row wrap">
+      <div class="block">
+        <div class="slotlbl">SIDE</div>
+        <div class="chips" data-set="side">
+          <button class="chip on" data-action="set" data-k="side" data-v="attack">ATTACK</button>
+          <button class="chip" data-action="set" data-k="side" data-v="defend">DEFENSE</button>
+        </div>
+      </div>
+      <div class="block">
+        <div class="slotlbl">BOT DIFFICULTY</div>
+        <div class="chips" data-set="difficulty">
+          <button class="chip" data-action="set" data-k="difficulty" data-v="recruit">RECRUIT</button>
+          <button class="chip on" data-action="set" data-k="difficulty" data-v="veteran">VETERAN</button>
+          <button class="chip" data-action="set" data-k="difficulty" data-v="elite">ELITE</button>
+        </div>
+      </div>
+      <div class="block">
+        <div class="slotlbl">ROUNDS</div>
+        <div class="chips" data-set="bestOf">
+          <button class="chip" data-action="set" data-k="bestOf" data-v="1">BO1</button>
+          <button class="chip on" data-action="set" data-k="bestOf" data-v="3">BO3</button>
+          <button class="chip" data-action="set" data-k="bestOf" data-v="5">BO5</button>
+        </div>
+      </div>
+    </div>
+    <p class="fine">Halcyon Press · two floors + basement · two site pairs</p>
+    <div class="row">
+      <button class="btn" data-action="back">BACK</button>
+      <button class="btn primary" data-action="goto" data-arg="opselect">CHOOSE OPERATORS</button>
+    </div>
+  </section>
+
+  <section id="scr-opselect" class="screen opscreen hidden">
+    <header class="ops-top">
+      <div class="side-toggle" role="tablist" aria-label="Faction">
+        <button class="chip on" data-action="set" data-k="side" data-v="attack" id="ops-side-atk">ASHLINE</button>
+        <button class="chip" data-action="set" data-k="side" data-v="defend" id="ops-side-def">HOLDFAST</button>
+      </div>
+      <div id="ops-match-info" class="ops-match">Halcyon Press</div>
+      <button class="btn primary ops-confirm" data-action="deploy" id="ops-confirm">CONFIRM</button>
+    </header>
+    <div class="ops-body">
+      <div id="op-grid" class="op-grid"></div>
+      <div id="op-showcase" class="op-showcase" aria-label="Operator showcase"></div>
+      <aside id="op-detail" class="op-detail"></aside>
+    </div>
+    <p id="op-bio" class="op-bio"></p>
+    <div class="row ops-bottom">
+      <button class="btn" data-action="back">BACK</button>
+      <button class="btn" data-action="goto" data-arg="loadout">LOADOUT</button>
+    </div>
+  </section>
+
+  <section id="scr-loadout" class="screen hidden">
+    <h2>Loadout</h2>
+    <div id="loadout-body" class="loadout"></div>
+    <div class="row">
+      <button class="btn" data-action="back">BACK</button>
+      <button class="btn primary" data-action="deploy">DEPLOY</button>
+    </div>
+  </section>
+
+  <section id="scr-settings" class="screen hidden">
+    <h2>Settings</h2>
+    <div id="settings-body" class="settings-scroll"></div>
+    <div class="row">
+      <button class="btn" data-action="back">BACK</button>
+    </div>
+  </section>
+
+  <section id="scr-controls" class="screen hidden">
+    <h2>Controls</h2>
+    <div class="chips" id="ctrl-tabs">
+      <button class="chip on" data-action="ctrl-tab" data-v="touch">TOUCH</button>
+      <button class="chip" data-action="ctrl-tab" data-v="pad">CONTROLLER</button>
+      <button class="chip" data-action="ctrl-tab" data-v="kbm">KEYBOARD</button>
+    </div>
+    <div id="ctrl-body" class="settings-scroll"></div>
+    <div class="row">
+      <button class="btn" data-action="goto" data-arg="hudedit">EDIT HUD LAYOUT</button>
+      <button class="btn" data-action="back">BACK</button>
+    </div>
+  </section>
+
+  <section id="scr-hudedit" class="screen hidden">
+    <h2>HUD Layout</h2>
+    <p class="fine">Drag a button to move it. Use the corners to resize. Layout is saved on this device.</p>
+    <div class="row wrap">
+      <button class="btn" data-action="hud-reset">RESET DEFAULT</button>
+      <button class="btn" data-action="set" data-k="leftFire" data-v="toggle">TOGGLE LEFT FIRE</button>
+      <button class="btn primary" data-action="hud-save">SAVE</button>
+      <button class="btn" data-action="back">DONE</button>
+    </div>
+  </section>
+
+  <section id="scr-pause" class="screen hidden dim">
+    <h2>Paused</h2>
+    <div id="pause-score" class="scoreboard"></div>
+    <div class="col">
+      <button class="btn primary" data-action="resume">RESUME</button>
+      <button class="btn" data-action="goto" data-arg="settings">SETTINGS</button>
+      <button class="btn" data-action="quit">QUIT TO MENU</button>
+    </div>
+  </section>
+
+  <section id="scr-score" class="screen hidden dim">
+    <h2>Scoreboard</h2>
+    <div id="board-body" class="scoreboard"></div>
+    <div class="row"><button class="btn primary" data-action="close-score">CLOSE</button></div>
+  </section>
+
+  <section id="scr-credits" class="screen hidden">
+    <img class="wordmark sm" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="280" height="82">
+    <h2>Credits</h2>
+    <div class="credits">
+      <p><b>Operation: Takeover</b> is an original 5v5 tactical attack and defense game.</p>
+      <p>Operators, map, weapons, and audio direction are original. Third-party assets are used only under recorded free or CC0 licenses, archived with the project.</p>
+      <p>Asset licenses, including the CC0 bases and materials used in the realism weapons pack, are recorded in <a href="credits/licenses.md">credits/licenses.md</a>. Plain-text license transcripts ship in <a href="credits/licenses/">credits/licenses/</a>.</p>
+      <p>Map: Halcyon Press. Build <span id="credits-build"></span>.</p>
+      <p class="fine">This title is not affiliated with any other game.</p>
+    </div>
+    <div class="row"><button class="btn primary" data-action="back">BACK</button></div>
+  </section>
+
+  <section id="scr-end" class="screen hidden">
+    <h2 id="end-title">MATCH OVER</h2>
+    <p class="tag" id="end-sub"></p>
+    <div id="end-board" class="scoreboard"></div>
+    <div class="row">
+      <button class="btn primary" data-action="goto" data-arg="setup">PLAY AGAIN</button>
+      <button class="btn" data-action="goto" data-arg="main">MENU</button>
+    </div>
+  </section>
+</div>
+
+<div id="loading" class="hidden">
+  <div class="load-card">
+    <img class="wordmark sm" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="240" height="70">
+    <h2 id="load-title">Loading Halcyon Press</h2>
+    <div class="load-bar"><i id="load-fill"></i></div>
+    <p id="load-msg">Preparing map…</p>
+  </div>
+</div>
+
+<div id="rotate">
+  <div>Rotate your phone to landscape</div>
+  <p class="fine">Operation: Takeover is designed for landscape play.</p>
+  <button type="button" class="btn" id="rotate-continue">CONTINUE ANYWAY</button>
+</div>
+
+<div id="iv-error" hidden></div>
+
+<script>
+/* iv-3.0.1 port: show WebKit/module failures on screen; never leave TAP TO START dead. */
+(function () {
+  if (typeof structuredClone !== 'function') {
+    window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
+  }
+  var box = document.getElementById('iv-error');
+  function show(msg) {
+    if (!box) return;
+    box.hidden = false;
+    box.textContent = String(msg || 'Unknown error');
+    box.style.display = 'block';
+  }
+  window.__ivShowError = show;
+  window.addEventListener('error', function (e) {
+    var m = (e && e.message) || 'Script error';
+    if (e && e.filename) m += '\n' + e.filename + (e.lineno ? (':' + e.lineno) : '');
+    show(m);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    show((r && (r.stack || r.message)) || String(r) || 'Unhandled promise rejection');
+  });
+  function dismissRotate() {
+    var el = document.getElementById('rotate');
+    if (el) el.classList.add('dismissed');
+  }
+  var cont = document.getElementById('rotate-continue');
+  if (cont) {
+    cont.addEventListener('click', dismissRotate);
+    cont.addEventListener('pointerup', function (e) { e.preventDefault(); dismissRotate(); });
+  }
+  function syncRotate() {
+    if (window.innerWidth >= window.innerHeight) dismissRotate();
+  }
+  syncRotate();
+  window.addEventListener('resize', syncRotate);
+  window.addEventListener('orientationchange', function () { setTimeout(syncRotate, 50); });
+  setTimeout(function () {
+    if (!window.__game) show('Game script failed to load. Screenshot this message and send it over.');
+  }, 12000);
+})();
+</script>
+
+<script type="module" src="js/main.js?v=iv-3.6.1"></script>
+</body>
+</html>
