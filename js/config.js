@@ -1,4 +1,4 @@
-import { BUILD, TITLE, SHORT_TITLE, MAP_NAME } from './version.js?v=iv-3.6.3';
+import { BUILD, TITLE, SHORT_TITLE, MAP_NAME } from './version.js?v=iv-3.7.0';
 
 export { BUILD, TITLE, SHORT_TITLE, MAP_NAME };
 
@@ -8,6 +8,7 @@ export const PLANT_TIME = 7;
 export const DEFUSE_TIME = 7;
 export const BOMB_TIME = 45;
 export const INTERMISSION = 12;
+export const REINFORCE_TIME = 4;
 export const DEFAULT_BEST_OF = 3;
 
 export const EYE = { stand: 1.55, crouch: 1.00, prone: 0.35 };

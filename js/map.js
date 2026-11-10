@@ -194,6 +194,30 @@ export const CAMS = [
   { id: 'cam-upper', name: 'Upper Hall', x: 0.5, y: 5.7, z: 10.3, yaw: 3.4, floor: '2' },
 ];
 
+
+/** Under-door clearance (metres). Operators cannot fit; scouts can. */
+export const DOOR_SWEEP = 0.22;
+
+/** Drone-only openings. New maps should ship their own list. Operators
+ *  cannot fit (opening height ~0.28, width ~0.42). Coordinates follow
+ *  the same alongX convention as DOORS. y0/y1 are offsets from the floor. */
+export const DRONE_GAPS = [
+  // Exterior crawl vents — original Halcyon Press service openings
+  { id: 'vent-street', kind: 'vent', floor: '1', alongX: true,  x: -2.4, z: -9,   w: 0.46, y0: 0.02, y1: 0.30, name: 'Street crawl vent' },
+  { id: 'vent-dock',   kind: 'vent', floor: '1', alongX: true,  x: -4.6, z: 11,   w: 0.46, y0: 0.02, y1: 0.30, name: 'Dock crawl vent' },
+  { id: 'vent-west',   kind: 'vent', floor: '1', alongX: false, x: -11,  z: -0.8, w: 0.46, y0: 0.02, y1: 0.30, name: 'West court vent' },
+  { id: 'vent-east',   kind: 'vent', floor: '1', alongX: false, x: 11,   z: 6.8,  w: 0.46, y0: 0.02, y1: 0.30, name: 'East alley vent' },
+  // Interior wall holes / vents between rooms (not on door leaves)
+  { id: 'hole-press-bind', kind: 'hole',  floor: '1', alongX: false, x: 1.2, z: -0.6, w: 0.42, y0: 0.02, y1: 0.28, name: 'Press wall gap' },
+  { id: 'vent-lobby-press', kind: 'vent', floor: '1', alongX: true,  x: -1.8, z: -2.2, w: 0.42, y0: 0.02, y1: 0.28, name: 'Lobby crawl vent' },
+  { id: 'board-paper-ink', kind: 'board', floor: 'B', alongX: false, x: 0.8, z: -5.5, w: 0.44, y0: 0.02, y1: 0.28, name: 'Paper-store board gap' },
+  { id: 'vent-paper-stair', kind: 'vent', floor: 'B', alongX: true,  x: -5.5, z: 5.0, w: 0.42, y0: 0.02, y1: 0.28, name: 'Paper-store vent' },
+  { id: 'vent-studio-loft', kind: 'vent', floor: '2', alongX: false, x: 1.2, z: -4.0, w: 0.42, y0: 0.02, y1: 0.28, name: 'Studio vent' },
+  // Window-corner sneak holes beside an existing window, at floor height
+  { id: 'wc-shop', kind: 'window-corner', floor: '1', alongX: true,  x: -10.35, z: -9, w: 0.30, y0: 0.02, y1: 0.26, name: 'Shop window corner' },
+  { id: 'wc-east', kind: 'window-corner', floor: '1', alongX: false, x: 11, z: -0.95, w: 0.30, y0: 0.02, y1: 0.26, name: 'Bindery window corner' },
+];
+
 export const BOUNDS = {
   play: { x0: -24, x1: 24, z0: -26, z1: 26 },
   warn: { x0: -22, x1: 22, z0: -23, z1: 23 },
@@ -215,6 +239,8 @@ export const MAP = {
   sites: SITES,
   spawns: SPAWNS,
   cams: CAMS,
+  droneGaps: DRONE_GAPS,
+  doorSweep: DOOR_SWEEP,
   bounds: BOUNDS,
 };
 

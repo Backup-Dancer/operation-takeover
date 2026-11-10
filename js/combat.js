@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-3.6.3';
-import { sfx } from './audio.js?v=iv-3.6.3';
+import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-3.7.0';
+import { sfx } from './audio.js?v=iv-3.7.0';
 
 export function isHostile(game, t) {
   if (!t) return false;
@@ -120,13 +120,30 @@ export function traceShot(game, origin, dir, wpn, who) {
   // charges first
   const ch = game.gadgets.hitCharges(origin, dir, 80);
   if (ch) { game.gadgets.shootCharge(ch, wpn.dmg || 20); return; }
+  // scout drones (shootable in prep and action)
+  const drones = game.droneSys?.drones || [];
+  for (const d of drones) {
+    if (!d.alive || !d.pos) continue;
+    const t = _closest(origin, dir, new THREE.Vector3(d.pos.x, d.pos.y + 0.06, d.pos.z), 80, 0.16);
+    if (t != null) { game.droneSys.hit(d, wpn.dmg || 20, who); return; }
+  }
   // cams
   for (const cam of game.world.secCams) {
     if (!cam.alive) continue;
     const t = _closest(origin, dir, new THREE.Vector3(cam.x, cam.y, cam.z), 80, 0.18);
-    if (t != null) { cam.alive = false; if (cam.led) cam.led.material.emissive = new THREE.Color(0x000000); return; }
+    if (t != null) {
+      cam.alive = false;
+      if (cam.led) {
+        cam.led.material.emissive = new THREE.Color(0x000000);
+        cam.led.material.emissiveIntensity = 0;
+      }
+      game.toast?.('Camera destroyed');
+      return;
+    }
   }
   // gadgets traps etc skipped
+  // Operators cannot eliminate each other during prep.
+  if (game.round?.phase === 'prep') return;
   // pawns
   let best = null, bt = 80;
   const pawns = [game.player, ...game.bots].filter(b => b !== who && b.alive);
@@ -182,7 +199,11 @@ export function melee(game) {
   const hits = ray.intersectObjects([game.world.staticGroup, game.world.dynGroup], true);
   let hit = false;
   const winHit2 = game.world.hitWindowOnRay?.(origin, dir, 1.85);
-  if (winHit2) { game.world.damageWindow(winHit2, 90); hit = true; }
+  if (winHit2) {
+    if (winHit2.state === 'barricaded') game.world.peekBarricade(winHit2, origin.y + dir.y * 0.9);
+    else game.world.damageWindow(winHit2, 90);
+    hit = true;
+  }
   if (hits[0]) {
     const o = hits[0].object;
     if (o.userData.chunk) { game.world.damageChunk(o.userData.chunk, 90); hit = true; }

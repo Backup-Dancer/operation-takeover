@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { sfx } from './audio.js?v=iv-3.6.3';
-import { createGadgetMesh } from './models.js?v=iv-3.6.3';
+import { sfx } from './audio.js?v=iv-3.7.0';
+import { createGadgetMesh } from './models.js?v=iv-3.7.0';
 
 /** All placed explosives are remote-detonated. No auto fuse. */
 export class Gadgets {

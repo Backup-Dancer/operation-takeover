@@ -1,5 +1,5 @@
-import { BUILD, TITLE } from './version.js?v=iv-3.6.3';
-import { Game } from './game.js?v=iv-3.6.3';
+import { BUILD, TITLE } from './version.js?v=iv-3.7.0';
+import { Game } from './game.js?v=iv-3.7.0';
 
 const meta = document.querySelector('meta[name=build]');
 if (meta && meta.content !== BUILD && !new URLSearchParams(location.search).get('v')) {

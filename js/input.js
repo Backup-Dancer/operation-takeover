@@ -1,4 +1,4 @@
-import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.6.3';
+import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.7.0';
 
 /** Clockwise degrees from the device's natural portrait. */
 export function screenOrientationAngle() {
@@ -89,6 +89,10 @@ const DEFAULT_LAYOUT = {
     'tb-detonate': { cx: 0.5, t: 70, w: 120, h: 48 },
     'tb-pause': { l: 10, t: 8, w: 44, h: 44 },
     'tb-score': { l: 58, t: 8, w: 44, h: 44 },
+    'tb-sprint': { l: 46, b: 148, w: 56, h: 40 },
+    'tb-hop': { r: 16, b: 66, w: 72, h: 72, hide: true },
+    'tb-switch': { r: 100, b: 70, w: 56, h: 48, hide: true },
+    'tb-feed-exit': { l: 22, t: 52, w: 56, h: 48, hide: true },
   },
   claw: {
     'stick-base': { l: 22, b: 18 },
@@ -111,6 +115,10 @@ const DEFAULT_LAYOUT = {
     'tb-detonate': { cx: 0.5, t: 70, w: 120, h: 48 },
     'tb-pause': { l: 10, t: 8, w: 44, h: 44 },
     'tb-score': { l: 58, t: 8, w: 44, h: 44 },
+    'tb-sprint': { l: 46, b: 148, w: 56, h: 40 },
+    'tb-hop': { r: 16, b: 66, w: 72, h: 72, hide: true },
+    'tb-switch': { r: 100, b: 70, w: 56, h: 48, hide: true },
+    'tb-feed-exit': { l: 22, t: 52, w: 56, h: 48, hide: true },
   },
 };
 
@@ -271,6 +279,11 @@ export class Input {
       else this.game.setStance(2);
       return;
     }
+    if (ctl === 'sprint' && down) {
+      p.sprintLock = !p.sprintLock;
+      p.sprint = !!p.sprintLock;
+      return;
+    }
     if (down) this.events.add(ctl);
     if (ctl === 'pause' && down) this.events.add('pause');
     if (ctl === 'score' && down) this.events.add('score');
@@ -365,6 +378,10 @@ export class Input {
       if (e.code === 'KeyG') this.events.add('gadget');
       if (e.code === 'KeyB') this.events.add('detonate');
       if (e.code === 'KeyT') this.events.add('drone');
+      if (e.code === 'Space') {
+        if (this.game.inDrone || this.game.droneSys?.active) this.events.add('hop');
+      }
+      if (e.code === 'KeyN' || e.code === 'BracketRight') this.events.add('cycle');
       if (e.code === 'KeyX') this.events.add('swap');
       if (e.code === 'KeyV') this.events.add('melee');
       if (e.code === 'KeyH') this.events.add('ping');
@@ -488,17 +505,29 @@ export class Input {
     edge(M.swap, 'swap');
     edge(M.pause, 'pause');
     edge(M.score, 'score');
+    const inFeed = !!(this.game.inDrone || this.game.inCams || this.game.droneSys?.active || this.game.droneSys?.camsOn);
     edge(M.dUp, 'gadget');
     edge(M.dDown, 'drone');
     edge(M.dLeft, 'gadget2');
     edge(M.dRight, 'cams');
-    // A vault/rappel
-    edge(M.jump, 'rappel');
+    if (inFeed) {
+      // A hop (drone), RB ping, B exit, bumpers cycle.
+      edge(M.jump, 'hop');
+      edge(M.leanR, 'ping');
+      edge(M.crouch, 'exitfeed');
+      edge(M.leanL, 'cycle');
+    } else {
+      edge(M.jump, 'rappel');
+    }
     if (pressed(M.reload) && B[M.reload]) {
       // hold X to interact
       if (!this._xHold) this._xHold = performance.now();
       if (performance.now() - this._xHold > 220) this.held.add('interact');
     } else this._xHold = 0, this.held.delete('interact');
+    if (inFeed) {
+      this._bHold = 0;
+      return;
+    }
     if (pressed(M.crouch)) {
       if (!this._bHold) this._bHold = performance.now();
     } else if (this._bHold) {

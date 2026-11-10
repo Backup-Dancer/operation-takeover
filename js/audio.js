@@ -1,5 +1,7 @@
 let ctx, master, unlocked = false;
 const buffers = new Map();
+const DISPATCH_URL = 'assets/audio/dispatch-prep.ogg';
+let _dispatchRaw = null;
 
 export function isUnlocked() { return unlocked; }
 
@@ -21,10 +23,58 @@ export async function unlock() {
       master.connect(ctx.destination);
     }
     unlocked = true;
+    loadDispatch().catch(() => {});
   } catch (e) {
     console.warn('audio unlock failed', e);
     unlocked = true;
   }
+}
+
+export async function loadDispatch() {
+  if (buffers.has('dispatch')) return true;
+  try {
+    const r = await fetch(DISPATCH_URL);
+    if (!r.ok) return false;
+    const buf = await r.arrayBuffer();
+    _dispatchRaw = buf;
+    if (ctx) {
+      const copy = buf.slice(0);
+      const decoded = await ctx.decodeAudioData(copy);
+      buffers.set('dispatch', decoded);
+    }
+    return true;
+  } catch (e) {
+    console.warn('dispatch voice failed to load', e);
+    return false;
+  }
+}
+
+export function dispatchReady() {
+  return buffers.has('dispatch') || !!_dispatchRaw;
+}
+
+export function playDispatch() {
+  if (!unlocked || !ctx) return false;
+  const play = (b) => {
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    const g = ctx.createGain();
+    g.gain.value = 1.05;
+    src.connect(g); g.connect(master);
+    src.start();
+    return true;
+  };
+  const b = buffers.get('dispatch');
+  if (b) return play(b);
+  if (_dispatchRaw && ctx) {
+    ctx.decodeAudioData(_dispatchRaw.slice(0)).then((dec) => {
+      buffers.set('dispatch', dec);
+      play(dec);
+    }).catch(() => {});
+    return true;
+  }
+  loadDispatch().then((ok) => { if (ok) playDispatch(); });
+  return false;
 }
 
 function beep(freq, dur, type = 'square', vol = 0.12, slide = 0) {
@@ -72,9 +122,12 @@ export const sfx = {
   explode: () => { noise(0.4, 0.45, 40, 800); beep(60, 0.3, 'sawtooth', 0.2, -40); },
   ui: () => beep(440, 0.04, 'square', 0.04),
   ping: () => { beep(980, 0.08, 'sine', 0.07); beep(1320, 0.1, 'sine', 0.05); },
+  droneHop: () => { noise(0.12, 0.16, 120, 900); beep(160, 0.08, 'triangle', 0.06, -60); },
+  static: () => noise(0.25, 0.12, 400, 8000),
   rappel: () => noise(0.15, 0.1, 100, 600),
   flash: () => noise(0.2, 0.25, 1000, 8000),
   buzz: () => beep(140, 0.2, 'sawtooth', 0.06),
 };
 
-export function startMusic() { /* no loop in v1; keep heap small */ }
+export function startMusic() { /* Menu beds only — a later pass. Never start this from a match. */ }
+export function stopMusic() { /* Matches stay silent; no in-round music bed. */ }

@@ -1,15 +1,10 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.6.3';
-import { getOp, listSide } from './operators.js?v=iv-3.6.3';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.6.3';
-import { isHostile } from './combat.js?v=iv-3.6.3';
-import { SPEED } from './config.js?v=iv-3.6.3';
-
-const DIFF = {
-  recruit: { react: 0.55, acc: 0.12, peek: 0.3 },
-  veteran: { react: 0.32, acc: 0.07, peek: 0.55 },
-  elite:   { react: 0.18, acc: 0.04, peek: 0.8 },
-};
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.7.0';
+import { getOp, listSide } from './operators.js?v=iv-3.7.0';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.7.0';
+import { isHostile } from './combat.js?v=iv-3.7.0';
+import { SPEED } from './config.js?v=iv-3.7.0';
+import { difficultyParams } from './difficulty.js?v=iv-3.7.0';
 
 export function spawnBots(game) {
   const bots = [];
@@ -22,7 +17,7 @@ export function spawnBots(game) {
     used.add(op.id);
     const spawn = pickSpawn(game, side, i);
     const b = {
-      kind: 'operator', team: side, op, opId: op.id, alive: true, hp: 100,
+      kind: 'operator', team: side, op, opId: op.id, alive: true, hp: difficultyParams(game.cfg?.difficulty).hp,
       armor: op.armor, speed: op.speed,
       pos: new THREE.Vector3(spawn.x, spawn.y, spawn.z),
       yaw: spawn.yaw || 0, pitch: 0, stance: 0, lean: 0, ads: 0,
@@ -92,7 +87,7 @@ function pickSpawn(game, side, i) {
 }
 
 export function updateBots(game, dt) {
-  const dcfg = DIFF[game.cfg.difficulty] || DIFF.veteran;
+  const dcfg = difficultyParams(game.cfg.difficulty);
   // shared marks
   for (const b of game.bots) {
     if (!b.alive) {
@@ -137,11 +132,11 @@ function think(game, b, dt, dcfg) {
   const site = nearestSite(game, b);
   const planted = game.round.planted;
   scores.hold = b.role === 'anchor' ? 0.7 : 0.3;
-  scores.peek = enemy && dist(b, enemy) < 22 ? 0.5 + dcfg.peek * 0.3 : 0.1;
-  scores.rotate = b.role === 'roamer' || b.role === 'flex' ? 0.45 : 0.15;
+  scores.peek = enemy && dist(b, enemy) < 22 ? 0.5 + dcfg.peek * 0.3 * (dcfg.aggro || 1) : 0.1;
+  scores.rotate = (b.role === 'roamer' || b.role === 'flex' ? 0.45 : 0.15) + (dcfg.flank || 0) * 0.25;
   scores.plant = (b.team === 'attack' && (b.role === 'plant' || b.role === 'flex') && game.round.phase === 'action' && !planted) ? 0.65 : 0;
   scores.defuse = (b.team === 'defend' && planted) ? 0.9 : 0;
-  scores.chase = enemy && enemy._lastSeen > game.time - 4 ? 0.4 : 0.05;
+  scores.chase = enemy && enemy._lastSeen > game.time - 4 ? 0.25 + (dcfg.aggro || 0.5) * 0.4 : 0.05;
   scores.breach = (b.team === 'attack' && b.role === 'breach' && game.round.phase === 'action') ? 0.5 : 0;
   scores.cam = (b.team === 'defend' && game.round.phase === 'prep') ? 0.4 : 0;
   scores.reinforce = (b.team === 'defend' && game.round.phase === 'prep') ? 0.8 : 0;
@@ -215,10 +210,17 @@ function move(game, b, dt) {
 }
 
 function shoot(game, b, dt, dcfg) {
-  const enemy = visibleEnemy(game, b);
-  if (!enemy) return;
-  const dx = enemy.pos.x - b.pos.x, dz = enemy.pos.z - b.pos.z;
-  b.yaw = Math.atan2(dx, dz);
+  // Defenders (and anyone who can see one) shoot scouts, including in prep.
+  const drone = visibleDrone(game, b, dcfg);
+  const enemy = game.round?.phase === 'prep' ? null : visibleEnemy(game, b, dcfg);
+  const target = drone || enemy;
+  if (!target) { b.aimT = Math.max(0, b.aimT - dt * 0.5); return; }
+  const tp = target.pos;
+  const dx = tp.x - b.pos.x, dz = tp.z - b.pos.z;
+  const want = Math.atan2(dx, dz);
+  const turn = Math.atan2(Math.sin(want - b.yaw), Math.cos(want - b.yaw));
+  const track = Math.min(1, (dcfg.track || 0.6) * 8 * dt);
+  b.yaw += turn * track;
   b.aimT += dt;
   if (b.aimT < dcfg.react) return;
   const now = game.time;
@@ -227,14 +229,38 @@ function shoot(game, b, dt, dcfg) {
   b.lastShot = now;
   if (!b.weapon || b.weapon.clip <= 0) { if (b.weapon) b.weapon.clip = b.weapon.mag; return; }
   b.weapon.clip--;
-  // accuracy
+  const aimY = drone ? (tp.y + 0.06) : (tp.y + 1.4);
   const origin = new THREE.Vector3(b.pos.x, b.pos.y + 1.45, b.pos.z);
-  const dir = new THREE.Vector3(enemy.pos.x - origin.x, enemy.pos.y + 1.4 - origin.y, enemy.pos.z - origin.z).normalize();
+  const dir = new THREE.Vector3(tp.x - origin.x, aimY - origin.y, tp.z - origin.z).normalize();
   dir.x += (Math.random() * 2 - 1) * dcfg.acc;
   dir.y += (Math.random() * 2 - 1) * dcfg.acc;
   dir.normalize();
   const { traceShot } = game._combat;
   traceShot(game, origin, dir, b.weapon, b);
+}
+
+function visibleDrone(game, b, dcfg) {
+  const list = game.droneSys?.drones || [];
+  if (!list.length) return null;
+  const range = ((dcfg && dcfg.spot) || 24) * 0.85;
+  let best = null, bd = range;
+  for (const d of list) {
+    if (!d.alive || !d.pos) continue;
+    if (d.owner?.team === b.team) continue;
+    const dist = Math.hypot(d.pos.x - b.pos.x, d.pos.z - b.pos.z, (d.pos.y || 0) - (b.pos.y || 0));
+    if (dist > bd) continue;
+    const steps = 5;
+    let blocked = false;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = b.pos.x + (d.pos.x - b.pos.x) * t;
+      const z = b.pos.z + (d.pos.z - b.pos.z) * t;
+      const y = b.pos.y + 1.2 + (d.pos.y - (b.pos.y + 1.2)) * t;
+      if (game.world.pointInSolid(x, y, z, 0.04, 0.08)) { blocked = true; break; }
+    }
+    if (!blocked) { bd = dist; best = d; }
+  }
+  return best;
 }
 
 function closestEnemy(game, b) {
@@ -246,21 +272,29 @@ function closestEnemy(game, b) {
   }
   return best;
 }
-function visibleEnemy(game, b) {
+function visibleEnemy(game, b, dcfg) {
   const e = closestEnemy(game, b);
   if (!e) return null;
-  if (dist(b, e) > 28) return null;
-  // cheap LOS: a few steps
+  const range = (dcfg && dcfg.spot) || 28;
+  const d = dist(b, e);
+  if (d > range) return null;
   const steps = 6;
+  let blocked = false;
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     const x = b.pos.x + (e.pos.x - b.pos.x) * t;
     const z = b.pos.z + (e.pos.z - b.pos.z) * t;
     const y = b.pos.y + 1.4;
-    if (game.world.pointInSolid(x, y, z, 0.05, 0.1)) return null;
+    if (game.world.pointInSolid(x, y, z, 0.05, 0.1)) { blocked = true; break; }
   }
-  e._lastSeen = game.time;
-  return e;
+  if (!blocked) { e._lastSeen = game.time; return e; }
+  // Heard but not seen: close moving targets still draw a chase.
+  const moving = (e.vel && e.vel.length && e.vel.length() > 1.1) || e.sprint;
+  if (moving && d < ((dcfg && dcfg.hear) || 10)) {
+    e._lastHeard = game.time;
+    return null;
+  }
+  return null;
 }
 function nearestSite(game, b) {
   const sites = game.round.pair.sites.map(id => game.world.sites[id]);
@@ -278,3 +312,5 @@ function dist(a, b) { return Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z, (a
 function floorYSafe(game, w) {
   return game.world.groundAt(w.x, w.z, (w.y || 2) + 1);
 }
+
+export function botDifficulty(id) { return difficultyParams(id); }

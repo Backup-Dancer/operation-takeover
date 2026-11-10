@@ -1,23 +1,26 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, EYE } from './config.js?v=iv-3.6.3';
-import { loadSettings, saveSettings } from './settings.js?v=iv-3.6.3';
-import { Gfx } from './gfx.js?v=iv-3.6.3';
-import { unlock as unlockAudio, sfx } from './audio.js?v=iv-3.6.3';
-import { Input } from './input.js?v=iv-3.6.3';
-import { UI } from './ui.js?v=iv-3.6.3';
-import { World } from './world.js?v=iv-3.6.3';
-import { Nav } from './nav.js?v=iv-3.6.3';
-import { getOp } from './operators.js?v=iv-3.6.3';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.6.3';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.6.3';
-import { Gadgets } from './gadgets.js?v=iv-3.6.3';
-import * as combat from './combat.js?v=iv-3.6.3';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.6.3';
-import { DroneSys } from './drone.js?v=iv-3.6.3';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.6.3';
-import { buildHuman, measure } from './characters.js?v=iv-3.6.3';
-import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.6.3';
-import { MenuScene } from './menu/MenuScene.js?v=iv-3.6.3';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-3.7.0';
+import { loadSettings, saveSettings } from './settings.js?v=iv-3.7.0';
+import { Gfx } from './gfx.js?v=iv-3.7.0';
+import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic } from './audio.js?v=iv-3.7.0';
+import { Input } from './input.js?v=iv-3.7.0';
+import { UI } from './ui.js?v=iv-3.7.0';
+import { World } from './world.js?v=iv-3.7.0';
+import { Nav } from './nav.js?v=iv-3.7.0';
+import { getOp } from './operators.js?v=iv-3.7.0';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.7.0';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.7.0';
+import { Gadgets } from './gadgets.js?v=iv-3.7.0';
+import * as combat from './combat.js?v=iv-3.7.0';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.7.0';
+import { DroneSys } from './drone.js?v=iv-3.7.0';
+import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-3.7.0';
+import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-3.7.0';
+import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, roomCallout, showScanning } from './banners.js?v=iv-3.7.0';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.7.0';
+import { buildHuman, measure } from './characters.js?v=iv-3.7.0';
+import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.7.0';
+import { MenuScene } from './menu/MenuScene.js?v=iv-3.7.0';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }
@@ -133,6 +136,7 @@ export class Game {
       mode: 'bomb', side: 'attack', difficulty: 'veteran', bestOf: 3,
       map: 'halcyon', prepTime: PREP_TIME, ...cfg,
     };
+    this.cfg.difficulty = normalizeDifficulty(this.cfg.difficulty);
     this.ended = false;
     this.godMode = !!cfg.godMode || this.godMode;
     // world
@@ -188,6 +192,9 @@ export class Game {
     this.bots.forEach(b => b.mesh && this.gfx.scene.remove(b.mesh));
     this.bots = spawnBots(this);
     await readyBots(this.bots);
+    this.droneSys.spawnRound();
+    resetMarks(this);
+    loadDispatch().catch(() => {});
 
     this.running = true; this.inMenu = false;
     if (this.menu) this.menu.pause();
@@ -200,7 +207,10 @@ export class Game {
     if (!this._looping) { this._looping = true; requestAnimationFrame(t => this.loop(t)); }
     this.updateAmmo();
     this._setPhase('prep', this.cfg.prepTime || PREP_TIME);
-    this.toast(side === 'attack' ? 'Drone the building. Prepare an entry.' : 'Reinforce, barricade, and place your gadgets.');
+    stopMusic();
+    hideMatchOverlays();
+    this._beginPrep(side);
+    if (!this.godMode) showMatchCard(this);
     // Lazy-load the rest of the arsenal after the first frame so the
     // official 1K FP set stays off the critical path.
     const hold = [this.weapon?.id, this.secWeapon?.id];
@@ -242,6 +252,8 @@ export class Game {
   quit(showMenu = true) {
     this.running = false;
     this.gadgets.reset();
+    this.droneSys?.dispose?.();
+    resetMarks(this);
     if (this.world) this.world.dispose();
     this._botGen = (this._botGen || 0) + 1;
     for (const b of this.bots) {
@@ -302,20 +314,10 @@ export class Game {
     if (inp.consume('pause')) { this.inMenu = true; this.ui.show('pause'); return; }
     if (inp.consume('score')) { this.inMenu = true; this.ui.show('score'); return; }
 
-    if (this.droneSys.active) {
+    if (this.droneSys.active || this.droneSys.camsOn) {
       if (this.vm) this.vm.visible = false;
-      if (inp.consume('drone') || inp.consume('interact')) this.exitDrone();
-      else this.droneSys.update(dt);
-      this._tickRound(dt);
-      return;
-    }
-    if (this.droneSys.camsOn) {
-      if (this.vm) this.vm.visible = false;
-      if (inp.consume('cams') || inp.consume('interact')) this.exitCams();
-      if (inp.consume('gadget')) this.droneSys.cycle(-1);
-      if (inp.consume('gadget2')) this.droneSys.cycle(1);
-      this.droneSys.update(dt);
-      this._tickRound(dt);
+      this._tickFeed(dt);
+      this._tickSim(dt);
       return;
     }
 
@@ -344,15 +346,7 @@ export class Game {
     else if (inp.held.has('interact')) this.interact(dt, true);
 
     this._updateInteractPrompt();
-    this.gadgets.update(dt);
-    this.world.updateDoors(dt);
-    this.world.updateFx?.(dt);
-    if (!this._freezeBots) updateBots(this, dt);
-    const camPos = this.camera.position;
-    const q = this.gfx.quality;
-    for (const b of this.bots) if (b.visual) updateOperatorLod(b.visual, camPos, q);
-    this._tickRound(dt);
-    this._updateHud();
+    this._tickSim(dt);
     // fire-on-aim optional
     if (this.settings.fireOnAim !== 'off' && p.alive) {
       const ok = this.settings.fireOnAim === 'always' || (this.settings.fireOnAim === 'hip' && p.ads < 0.4);
@@ -442,9 +436,26 @@ export class Game {
     // reinforce in prep
     if (this.round.phase === 'prep' && p.team === 'defend') {
       const ch = w.chunks.find(c => !c.destroyed && !c.reinforced && Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < 1.6);
-      if (ch && holding) { w.reinforceChunk(ch); this.toast('Reinforced'); return true; }
-      const win = w.windows.find(wi => Math.hypot(wi.x - p.pos.x, wi.z - p.pos.z) < 1.6);
-      if (win && holding) { w.barricadeWindow(win); this.toast('Barricaded'); return true; }
+      if (ch && holding) {
+        if (!this._reinf || this._reinf.ch !== ch) this._reinf = { ch, t: 0 };
+        this._reinf.t += dt || 0;
+        setReinforceRing(this._reinf.t / (REINFORCE_TIME || 4));
+        if (this._reinf.t >= (REINFORCE_TIME || 4)) {
+          w.reinforceChunk(ch);
+          this.toast('Shutter set');
+          scorePopup(this, 'reinforce');
+          this._reinf = null;
+          setReinforceRing(0);
+        }
+        return true;
+      }
+      this._reinf = null;
+      setReinforceRing(0);
+      const win = w.windows.find(wi => Math.hypot(wi.x - p.pos.x, wi.z - p.pos.z) < 1.6 && wi.state !== 'barricaded');
+      if (win && holding) { w.barricadeWindow(win); this.toast('Barricade set'); scorePopup(this, 'barricade'); return true; }
+    } else {
+      this._reinf = null;
+      setReinforceRing(0);
     }
     return false;
   }
@@ -529,10 +540,85 @@ export class Game {
   }
 
   ping() {
+    const aim = aimPing(this);
+    const scan = !!aim.target;
     sfx.ping();
-    this.toast('Ping');
-    this._marks = this._marks || [];
-    this._marks.push({ pos: this.player.pos.clone(), t: this.time });
+    addMark(this, {
+      kind: scan ? 'scan' : 'ping',
+      team: this.player.team,
+      pos: aim.pos,
+      target: aim.target,
+      who: this.player,
+    });
+    if (scan) {
+      this.toast(this.inCams || this.droneSys?.camsOn ? 'Hostiles marked on cam' : 'Hostiles marked by scout');
+      scorePopup(this, 'marked');
+      showScanning(true);
+      clearTimeout(this._scanT);
+      this._scanT = setTimeout(() => showScanning(false), 700);
+    } else {
+      this.toast('Ping');
+    }
+  }
+
+  _beginPrep(side) {
+    const s = side || this.player?.team;
+    this.droneSys?._syncHud?.();
+    if (s === 'attack') {
+      this.toast('Prep phase — gather intel.');
+      playDispatch();
+      this.enterDrone();
+    } else {
+      this.toast('Reinforce, barricade, and place your gadgets.');
+    }
+  }
+
+  _autoScanTick(source) {
+    const now = this.time || 0;
+    if (now - (this._autoScanAt || 0) < 0.35) return;
+    this._autoScanAt = now;
+    const hit = autoScan(this, source);
+    if (!hit || hit === this._autoScanLast) return;
+    this._autoScanLast = hit;
+    this.toast(source === 'cam' ? 'Hostiles marked on cam' : 'Hostiles marked by scout');
+    scorePopup(this, 'marked');
+    showScanning(true);
+    clearTimeout(this._scanT);
+    this._scanT = setTimeout(() => showScanning(false), 700);
+  }
+
+  _tickFeed(dt) {
+    const inp = this.input;
+    if (this.droneSys.active) {
+      if (inp.consume('hop') || inp.consume('rappel')) this.droneSys.hop();
+      if (inp.consume('cycleback') || inp.consume('gadget')) this.droneSys.cycleDrone(-1);
+      if (inp.consume('cycle') || inp.consume('gadget2')) this.droneSys.cycleDrone(1);
+      if (inp.consume('ping')) this.ping();
+      this._autoScanTick('scout');
+      if (inp.consume('drone') || inp.consume('interact') || inp.consume('exitfeed')) this.exitDrone();
+      else this.droneSys.update(dt);
+    } else if (this.droneSys.camsOn) {
+      if (inp.consume('cycleback') || inp.consume('gadget')) this.droneSys.cycle(-1);
+      if (inp.consume('cycle') || inp.consume('gadget2')) this.droneSys.cycle(1);
+      if (inp.consume('ping')) this.ping();
+      this._autoScanTick('cam');
+      if (inp.consume('cams') || inp.consume('interact') || inp.consume('exitfeed') || inp.consume('drone')) this.exitCams();
+      else this.droneSys.update(dt);
+    }
+  }
+
+  _tickSim(dt) {
+    this.gadgets.update(dt);
+    this.world.updateDoors(dt);
+    this.world.updateFx?.(dt);
+    if (!this._freezeBots) updateBots(this, dt);
+    this.droneSys?.updateBots?.(dt);
+    updateMarks(this);
+    const camPos = this.camera.position;
+    const q = this.gfx.quality;
+    for (const b of this.bots) if (b.visual) updateOperatorLod(b.visual, camPos, q);
+    this._tickRound(dt);
+    this._updateHud();
   }
 
   enterDrone() { this.inDrone = this.droneSys.enterDrone(); }
@@ -544,7 +630,9 @@ export class Game {
     if (!who || !who.alive) return;
     if (who === this.player && this.godMode) return;
     const mul = 1 - (who.armor || 0) * 0.12;
-    who.hp -= dmg * mul;
+    const fromBot = info?.who && info.who !== this.player && info.who.kind === 'operator';
+    const dcfg = fromBot ? difficultyParams(this.cfg?.difficulty) : null;
+    who.hp -= dmg * mul * (dcfg ? dcfg.dmg : 1);
     if (who === this.player) {
       const fl = document.getElementById('damage-flash');
       if (fl) { fl.style.opacity = 0.6; setTimeout(() => fl.style.opacity = 0, 120); }
@@ -556,6 +644,11 @@ export class Game {
       if (who === this.player) {
         this.toast('You are down');
         clearAdsToggle(this);
+        showEliminated(this, info?.who);
+        const flw = document.getElementById('flash-white');
+        if (flw) { flw.style.opacity = 0.85; setTimeout(() => { flw.style.opacity = 0; }, 140); }
+      } else if (info?.who === this.player) {
+        scorePopup(this, head ? 'headshot' : 'elim');
       }
       this._checkElim();
     }
@@ -572,6 +665,10 @@ export class Game {
   _setPhase(ph, t) {
     this.round.phase = ph; this.round.t = t;
     document.getElementById('hud-phase').textContent = ph.toUpperCase();
+    if (ph !== 'prep') {
+      this._prepCount = null;
+      document.getElementById('hud-countdown')?.classList.remove('show');
+    }
   }
 
   _tickRound(dt) {
@@ -579,6 +676,15 @@ export class Game {
     if (this.round.phase === 'prep' && this.round.t <= 0) {
       this._setPhase('action', ACTION_TIME);
       this.toast('Action phase');
+      this.droneSys?._syncHud?.();
+    } else if (this.round.phase === 'prep' && this.round.t <= 5) {
+      const n = Math.ceil(this.round.t);
+      if (n !== this._prepCount && n > 0) {
+        this._prepCount = n;
+        const el = document.getElementById('hud-countdown');
+        if (el) { el.textContent = String(n); el.classList.add('show'); }
+        else this.toast(String(n));
+      }
     } else if (this.round.phase === 'action' && this.round.t <= 0) {
       if (this.round.planted) this._endRound('attack', 'timeout');
       else this._endRound('defend', 'timeout');
@@ -595,6 +701,13 @@ export class Game {
   _endRound(winner, why) {
     if (this.round.phase === 'intermission' || this.ended) return;
     if (winner === 'attack') this.round.scoreAtk++; else this.round.scoreDef++;
+    const reason = why === 'elim' ? 'HOSTILES ELIMINATED'
+      : why === 'defuse' ? 'DEFUSER DISABLED'
+      : why === 'timeout' && winner === 'attack' ? 'DEFUSER DETONATED'
+      : 'TIME EXPIRED';
+    const mates = [this.player, ...this.bots].filter(o => o && o.team === winner);
+    const clutch = this.player.team === winner && this.player.alive && mates.filter(o => o !== this.player && o.alive).length === 0;
+    showWon(this, reason, { clutch });
     this.toast((winner === 'attack' ? 'Attack' : 'Defense') + ' wins the round (' + why + ')');
     if (this.round.scoreAtk >= this.round.need || this.round.scoreDef >= this.round.need) {
       this.round.winner = this.round.scoreAtk > this.round.scoreDef ? 'attack' : 'defend';
@@ -619,8 +732,14 @@ export class Game {
     // reset pawns
     this.player.alive = true; this.player.hp = 100; this.player.rappelling = null;
     this._spawnPlayer(this.player.team);
-    for (const b of this.bots) { b.alive = true; b.hp = 100; }
+    const hp = difficultyParams(this.cfg.difficulty).hp;
+    for (const b of this.bots) { b.alive = true; b.hp = hp; }
+    if (this.inDrone) this.exitDrone();
+    if (this.inCams) this.exitCams();
+    this.droneSys.spawnRound();
+    resetMarks(this);
     this._setPhase('prep', this.cfg.prepTime || PREP_TIME);
+    this._beginPrep(this.player.team);
   }
 
   _bindPrompt() {
@@ -709,7 +828,20 @@ export class Game {
     else if (this.round.phase === 'prep') obj.textContent = this.player.team === 'attack' ? 'Prep — drone and choose an entry.' : 'Prep — reinforce, barricade, set gadgets.';
     else obj.textContent = this.player.team === 'attack' ? 'Plant the defuser at a site, or eliminate the defense.' : 'Stop the plant. Hold the sites.';
     const ch = document.getElementById('crosshair');
-    if (ch) ch.classList.toggle('hidden', this.player.ads > 0.55);
+    if (ch) ch.classList.toggle('hidden', this.player.ads > 0.55 || this.inDrone || this.inCams);
+    const cd = document.getElementById('hud-countdown');
+    if (cd && (this.round.phase !== 'prep' || this.round.t > 5)) cd.classList.remove('show');
+    const viewPos = (this.inDrone || this.droneSys?.active) && this.droneSys?.drone?.pos
+      ? this.droneSys.drone.pos
+      : ((this.inCams || this.droneSys?.camsOn) && this.gfx?.camera?.position) || this.player.pos;
+    const room = document.getElementById('hud-room');
+    if (room) room.textContent = roomCallout(this.world, viewPos);
+    const yaw = (this.inDrone || this.droneSys?.active) && this.droneSys?.drone
+      ? this.droneSys.drone.yaw
+      : this.player.yaw;
+    updateCompass(yaw);
+    updateSquad(this);
+    this.droneSys?._syncHud?.();
   }
 
   updateAmmo() {
@@ -795,6 +927,9 @@ export class Game {
       solid: !!w.pointInSolid(p.pos.x, p.pos.y + 0.2, p.pos.z, 0.2, 1.2),
       worldGroups: groups,
       mem: this.gfx.info(),
+      droneGaps: (w.droneGaps || []).length,
+      cams: (w.secCams || []).length,
+      difficulty: this.cfg?.difficulty,
     };
   }
 }

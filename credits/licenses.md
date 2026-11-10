@@ -66,7 +66,8 @@ Every third-party asset in this project is listed below. All texture and HDRI fi
 ## Self-made
 
 - `assets/icons/icon-180.png`, `icon-512.png`, `favicon.png` — original IRONVEIL monogram, created for this game.
-- All map layouts, operator names, gadgets, UI art, audio (synthesized at runtime) and procedural models are original work for IRONVEIL.
+- All map layouts, operator names, gadgets, UI art, and procedural models are original work for IRONVEIL.
+- Prep-phase dispatcher line ("Prep phase team, gather intel and takedown the enemy!") is original to the game. The spoken recording in `assets/audio/dispatch-prep.ogg` was synthesized locally with [Piper](https://github.com/rhasspy/piper) (MIT) and the public-domain [LJ Speech](https://keithito.com/LJ-Speech-Dataset/) `en_US-ljspeech-medium` voice, then radio-filtered with ffmpeg. Record: `credits/licenses/DISPATCH-VOICE.md`, Piper license: `credits/licenses/PIPER-MIT.txt`. Other in-game audio remains synthesized at runtime.
 - No Ubisoft names, characters, likenesses, maps, floor plans, logos, UI art, icons or text are used.
 
 ## Operator portraits (original generated art)

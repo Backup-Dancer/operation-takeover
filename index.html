@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Takeover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0b0c0e">
-<meta name="build" content="iv-3.6.3">
+<meta name="build" content="iv-3.7.0">
 <title>Operation: Takeover</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="assets/icons/favicon.png">
@@ -17,7 +17,7 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "./vendor/three/three.module.js?v=iv-3.6.3",
+    "three": "./vendor/three/three.module.js?v=iv-3.7.0",
     "three/addons/": "./vendor/three/addons/"
   }
 }
@@ -45,20 +45,45 @@ if ('serviceWorker' in navigator) {
 </div>
 <div id="flash-white"></div>
 <div id="damage-flash"></div>
-<div id="drone-ov" class="hidden"><div class="scan"></div><div id="drone-label">SCOUT</div></div>
-<div id="cctv-ov" class="hidden"><div class="cctv-scan"></div><div class="cctv-vignette"></div><div id="cctv-name">CAM</div></div>
+<div id="drone-ov" class="hidden">
+  <div class="scan"></div>
+  <div class="feed-static"></div>
+  <div id="drone-label">POSITION SCOUTS</div>
+  <button type="button" class="feed-arrow left" data-ctl="cycleback" aria-label="Previous scout">‹</button>
+  <button type="button" class="feed-arrow right" data-ctl="cycle" aria-label="Next scout">›</button>
+</div>
+<div id="cctv-ov" class="hidden">
+  <div class="cctv-scan"></div>
+  <div class="cctv-vignette"></div>
+  <div class="feed-edge-static"></div>
+  <div class="feed-static"></div>
+  <div id="cctv-name">CAM</div>
+  <button type="button" class="feed-arrow left" data-ctl="cycleback" aria-label="Previous camera">‹</button>
+  <button type="button" class="feed-arrow right" data-ctl="cycle" aria-label="Next camera">›</button>
+</div>
 
 <div id="hud" class="hidden">
   <div id="hud-top">
+    <div id="hud-compass"><span class="hdg-letter">N</span><span class="hdg-ticks"></span></div>
     <div id="hud-phase">PREP</div>
     <div id="hud-timer">0:45</div>
     <div id="hud-score"><span id="hud-score-atk">0</span><span class="sep">–</span><span id="hud-score-def">0</span></div>
+    <div id="hud-squad"></div>
   </div>
+  <div id="hud-room"></div>
   <div id="hud-obj">Secure a site and plant the defuser.</div>
   <div id="hud-health"><div class="bar"><i id="hp-fill"></i></div><span id="hp-n">100</span></div>
   <div id="hud-ammo"><b id="ammo-clip">30</b><span id="ammo-res">/ 150</span><small id="ammo-wpn">CARBINE</small></div>
   <div id="hud-toast"></div>
+  <div id="hud-scorepops"></div>
+  <div id="hud-scanning" class="hidden">SCANNING…</div>
+  <div id="hud-countdown"></div>
+  <div id="hud-marks"></div>
   <div id="hud-callouts"></div>
+  <div id="hud-ring" class="hidden"><b>4</b></div>
+  <div id="hud-won" class="hidden"></div>
+  <div id="hud-elim" class="hidden"></div>
+  <div id="hud-matchcard" class="hidden"></div>
   <div id="crosshair" class="ch-cross"></div>
   <button type="button" id="hud-prompt" class="hidden" aria-label="Interact"></button>
   <div id="hud-detonate" class="hidden">
@@ -70,6 +95,7 @@ if ('serviceWorker' in navigator) {
 
 <div id="touch" class="hidden">
   <div id="stick-base" class="tctl" data-ctl="stick"><div id="stick-knob"></div></div>
+  <button id="tb-sprint" class="tbtn" data-ctl="sprint">SPRINT</button>
   <div id="look-zone"></div>
   <button id="tb-fire" class="tbtn tbtn-fire" data-ctl="fire">FIRE</button>
   <button id="tb-fire-l" class="tbtn tbtn-fire-l hidden" data-ctl="fireL">FIRE</button>
@@ -90,6 +116,12 @@ if ('serviceWorker' in navigator) {
   <button id="tb-detonate" class="tbtn tbtn-det hidden" data-ctl="detonate">DETONATE</button>
   <button id="tb-pause" class="tbtn tbtn-top" data-ctl="pause">II</button>
   <button id="tb-score" class="tbtn tbtn-top" data-ctl="score">TAB</button>
+  <button id="tb-hop" class="tbtn tbtn-feed hidden" data-ctl="hop">JUMP</button>
+  <button id="tb-scan" class="tbtn tbtn-feed hidden" data-ctl="ping">SCAN</button>
+  <button id="tb-switch" class="tbtn tbtn-feed hidden" data-ctl="cycle">SWITCH</button>
+  <button id="tb-feed-exit" class="tbtn tbtn-feed hidden" data-ctl="exitfeed">EXIT</button>
+  <button id="tb-cycle-l" class="tbtn tbtn-feed feed-arrow left hidden" data-ctl="cycleback" aria-label="Previous feed">‹</button>
+  <button id="tb-cycle-r" class="tbtn tbtn-feed feed-arrow right hidden" data-ctl="cycle" aria-label="Next feed">›</button>
 </div>
 
 <div id="menus">
@@ -129,6 +161,7 @@ if ('serviceWorker' in navigator) {
         <div class="slotlbl">BOT DIFFICULTY</div>
         <div class="chips" data-set="difficulty">
           <button class="chip" data-action="set" data-k="difficulty" data-v="recruit">RECRUIT</button>
+          <button class="chip" data-action="set" data-k="difficulty" data-v="regular">REGULAR</button>
           <button class="chip on" data-action="set" data-k="difficulty" data-v="veteran">VETERAN</button>
           <button class="chip" data-action="set" data-k="difficulty" data-v="elite">ELITE</button>
         </div>
@@ -242,6 +275,7 @@ if ('serviceWorker' in navigator) {
   </section>
 
   <section id="scr-end" class="screen hidden">
+    <div id="end-slash" class="hidden">DEFEAT</div>
     <h2 id="end-title">MATCH OVER</h2>
     <p class="tag" id="end-sub"></p>
     <div id="end-board" class="scoreboard"></div>
@@ -313,6 +347,6 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
-<script type="module" src="js/main.js?v=iv-3.6.3"></script>
+<script type="module" src="js/main.js?v=iv-3.7.0"></script>
 </body>
 </html>

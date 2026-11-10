@@ -1,4 +1,5 @@
-import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-3.6.3';
+import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-3.7.0';
+import { normalizeDifficulty } from './difficulty.js?v=iv-3.7.0';
 
 export const DEFAULTS = {
   quality: 'auto',
@@ -53,6 +54,7 @@ export function loadSettings() {
     merge(out, d);
     // Fresh installs and corrupt/legacy values must not invert look.
     out.invertY = out.invertY === true;
+    out.difficulty = normalizeDifficulty(out.difficulty);
     // iv-3.0.3: touch defaults to Toggle, controller to Hold, unless the
     // player has explicitly picked a mode (legacy saves had adsMode:'hold'
     // from the old default and are treated as unset).

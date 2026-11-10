@@ -1,9 +1,10 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-3.6.3';
-import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-3.6.3';
-import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-3.6.3';
-import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-3.6.3';
-import { saveSettings, DEFAULTS } from './settings.js?v=iv-3.6.3';
-import { QUALITY, TITLE, BUILD } from './config.js?v=iv-3.6.3';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-3.7.0';
+import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-3.7.0';
+import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-3.7.0';
+import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-3.7.0';
+import { saveSettings, DEFAULTS } from './settings.js?v=iv-3.7.0';
+import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-3.7.0';
+import { QUALITY, TITLE, BUILD } from './config.js?v=iv-3.7.0';
 
 export class UI {
   constructor(game) {
@@ -82,6 +83,10 @@ export class UI {
       }
       g.settings[k] = isNaN(Number(v)) ? v : Number(v);
       if (k === 'bestOf') g.settings.bestOf = Number(v);
+      if (k === 'difficulty') {
+        g.settings.difficulty = normalizeDifficulty(v);
+        if (g.cfg) g.cfg.difficulty = g.settings.difficulty;
+      }
       saveSettings(g.settings);
       this._syncChips();
       if (k === 'side') {
@@ -286,6 +291,8 @@ export class UI {
       ${rowRange('gyroYaw', 'Gyro yaw', s.gyroYaw, 0.2, 2, 0.05)}
       ${rowRange('gyroPitch', 'Gyro pitch', s.gyroPitch, 0.2, 2, 0.05)}
       ${rowChk('invertY', 'Invert Y', s.invertY)}
+      <div class="slotlbl">BOT DIFFICULTY</div>
+      ${rowSel('difficulty', 'Difficulty', s.difficulty, DIFFICULTY_IDS)}
       <div class="slotlbl">CONTROLS</div>
       ${rowSel('leanMode', 'Lean', s.leanMode, ['toggle','hold'])}
       ${rowSel('adsMode', 'ADS (touch default Toggle; controller default Hold)', s.adsModeUser ? s.adsMode : 'toggle', ['toggle','hold'])}
@@ -324,6 +331,10 @@ export class UI {
     else if (id === 'gyroYaw') s.gyroYaw = +val;
     else if (id === 'gyroPitch') s.gyroPitch = +val;
     else if (id === 'invertY') s.invertY = !!val;
+    else if (id === 'difficulty') {
+      s.difficulty = normalizeDifficulty(val);
+      if (this.game.cfg) this.game.cfg.difficulty = s.difficulty;
+    }
     else if (id === 'leanMode') s.leanMode = val;
     else if (id === 'adsMode') { s.adsMode = val; s.adsModeUser = true; }
     else if (id === 'hudPreset') { s.hudPreset = val; this.game.input.applyLayout(val); }
@@ -372,13 +383,17 @@ export class UI {
   }
   _renderEnd() {
     const g = this.game;
-    document.getElementById('end-title').textContent = g.round.winner === g.player.team ? 'VICTORY' : 'DEFEAT';
+    const won = g.round.winner === g.player.team;
+    document.getElementById('end-title').textContent = won ? 'VICTORY' : 'DEFEAT';
+    document.getElementById('end-slash')?.classList.toggle('hidden', won);
+    document.getElementById('scr-end')?.classList.toggle('defeat', !won);
     document.getElementById('end-sub').textContent = `Final ${g.round.scoreAtk} – ${g.round.scoreDef}`;
     this._renderBoard('end-board');
   }
 }
 function rowSel(id, label, cur, opts) {
-  return `<div class="set-row"><label>${label}</label><select id="${id}">${opts.map(o => `<option value="${o}" ${o==cur?'selected':''}>${o}</option>`).join('')}</select></div>`;
+  const lab = (o) => id === 'difficulty' ? o.charAt(0).toUpperCase() + o.slice(1) : o;
+  return `<div class="set-row"><label>${label}</label><select id="${id}">${opts.map(o => `<option value="${o}" ${o==cur?'selected':''}>${lab(o)}</option>`).join('')}</select></div>`;
 }
 function rowRange(id, label, cur, min, max, step) {
   return `<div class="set-row"><label>${label}</label><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${cur}"></div>`;

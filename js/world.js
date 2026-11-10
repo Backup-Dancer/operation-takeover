@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { sfx } from './audio.js?v=iv-3.6.3';
-import { MAP, FLOORS, ROOMS, DOORS, WINDOWS, HATCHES, STAIRS, SOFT_WALLS, CAMS, BOUNDS, SITE_PAIRS, SITES, SPAWNS, floorY, roomById } from './map.js?v=iv-3.6.3';
-import { COL_R } from './config.js?v=iv-3.6.3';
-import { furnish } from './props.js?v=iv-3.6.3';
+import { sfx } from './audio.js?v=iv-3.7.0';
+import { MAP, FLOORS, ROOMS, DOORS, WINDOWS, HATCHES, STAIRS, SOFT_WALLS, CAMS, DRONE_GAPS, DOOR_SWEEP, BOUNDS, SITE_PAIRS, SITES, SPAWNS, floorY, roomById } from './map.js?v=iv-3.7.0';
+import { COL_R } from './config.js?v=iv-3.7.0';
+import { furnish } from './props.js?v=iv-3.7.0';
 
 const WT = 0.18; // wall thickness
 const CHUNK = 0.55;
@@ -25,6 +25,7 @@ export class World {
     this.stairVols = [];
     this.facades = [];
     this.secCams = [];
+    this.droneGaps = [];
     this.chunks = [];
     this.rooms = ROOMS;
     this.sites = SITES;
@@ -63,6 +64,7 @@ export class World {
     progress?.('Facades', 0.5);
     this._buildFacades();
     this._buildCams();
+    this._buildGaps();
     progress?.('Surroundings', 0.65);
     await yieldFrame();
     this._buildSurroundings();
@@ -81,7 +83,7 @@ export class World {
     this.dispose(false);
     this.boxes = []; this.doors = []; this.windows = []; this.hatches = [];
     this.floorChunks = []; this._fx = [];
-    this.stairVols = []; this.facades = []; this.secCams = []; this.chunks = [];
+    this.stairVols = []; this.facades = []; this.secCams = []; this.droneGaps = []; this.chunks = [];
     this._geoms = [];
     this.softPanels = [];
     this._instances = new Map();
@@ -273,6 +275,14 @@ export class World {
       const h = 1.25;
       list.push({ floor: w.floor, alongX: w.alongX, c: w.alongX ? w.z : w.x, lo: (w.alongX ? w.x : w.z) - w.w / 2, hi: (w.alongX ? w.x : w.z) + w.w / 2, y0: fl + w.sill, y1: fl + w.sill + h, kind: 'window', id: w.id });
     }
+    for (const g of DRONE_GAPS) {
+      const fl = floorY(g.floor);
+      list.push({
+        floor: g.floor, alongX: g.alongX, c: g.alongX ? g.z : g.x,
+        lo: (g.alongX ? g.x : g.z) - g.w / 2, hi: (g.alongX ? g.x : g.z) + g.w / 2,
+        y0: fl + g.y0, y1: fl + g.y1, kind: 'drone-gap', id: g.id,
+      });
+    }
     return list;
   }
 
@@ -437,11 +447,13 @@ export class World {
       const mat = this.gfx.mat('table', { repeat: 1, color: d.exterior ? 0x5a3a22 : 0x6a4a2e });
       const facade = d.exterior ? this._facadeSide(d.x, d.z) : null;
       const room = facade ? null : this._roomAt(d.x, d.z, d.floor);
-      const mesh = this._box(alongX ? d.w : thick, h, alongX ? thick : d.w, mat, d.x, y + h / 2, d.z, { static: false, collide: false, cast: true, room: room?.id, facade });
+      const sweep = DOOR_SWEEP;
+      const visH = h - sweep;
+      const mesh = this._box(alongX ? d.w : thick, visH, alongX ? thick : d.w, mat, d.x, y + sweep + visH / 2, d.z, { static: false, collide: false, cast: true, room: room?.id, facade });
       const door = {
-        ...d, y, h, thick, nx, nz, state: 'closed', angle: 0, target: 0,
+        ...d, y, h, thick, nx, nz, sweep, visH, state: 'closed', angle: 0, target: 0,
         locked: false, barricaded: false, reinforced: false, mesh,
-        box: { x0: 0, x1: 0, y0: y, y1: y + h, z0: 0, z1: 0, door: true },
+        box: { x0: 0, x1: 0, y0: y + sweep, y1: y + h, z0: 0, z1: 0, door: true },
       };
       this._syncDoorBox(door);
       this.boxes.push(door.box);
@@ -476,16 +488,16 @@ export class World {
       door.box.solid = true;
       // mesh rotation
     }
-    door.box.y0 = door.y; door.box.y1 = door.y + door.h;
+    door.box.y0 = door.y + (door.sweep ?? DOOR_SWEEP); door.box.y1 = door.y + door.h;
     door.box.ignoreIfOpenCenter = openAmt >= 0.12;
     if (door.mesh) {
       door.mesh.rotation.y = door.alongX ? door.angle : door.angle;
       // hinge offset
       const hinge = door.alongX ? door.w / 2 : door.w / 2;
       if (door.alongX) {
-        door.mesh.position.set(door.x - door.w / 2 + Math.cos(door.angle) * (door.w / 2), door.y + door.h / 2, door.z + Math.sin(door.angle) * (door.w / 2));
+        door.mesh.position.set(door.x - door.w / 2 + Math.cos(door.angle) * (door.w / 2), door.y + (door.sweep ?? DOOR_SWEEP) + (door.visH ?? door.h) / 2, door.z + Math.sin(door.angle) * (door.w / 2));
       } else {
-        door.mesh.position.set(door.x - Math.sin(door.angle) * (door.w / 2), door.y + door.h / 2, door.z - door.w / 2 + Math.cos(door.angle) * (door.w / 2));
+        door.mesh.position.set(door.x - Math.sin(door.angle) * (door.w / 2), door.y + (door.sweep ?? DOOR_SWEEP) + (door.visH ?? door.h) / 2, door.z - door.w / 2 + Math.cos(door.angle) * (door.w / 2));
       }
       door.mesh.updateMatrix();
     }
@@ -554,6 +566,8 @@ export class World {
       if (win._hp > 0) return false;
       win.state = 'intact';
       if (win.board) { win.board.visible = false; }
+      for (const s of win.slats || []) s.visible = false;
+      win.peek = false;
       // Board is gone; leftover force can still crack / shatter the pane.
     }
     win.hp = (win.hp ?? 40) - amt;
@@ -653,6 +667,7 @@ export class World {
     if (hy < y0 - 0.02 || hy > y1 + 0.02) return null;
     if (alongX) { if (Math.abs(hx - win.x) > (win.w || 1) / 2 + 0.02) return null; }
     else { if (Math.abs(hz - win.z) > (win.w || 1) / 2 + 0.02) return null; }
+    if (win.state === 'barricaded' && win.peek && win.peekY != null && Math.abs(hy - win.peekY) < 0.16) return null;
     return t;
   }
 
@@ -705,14 +720,65 @@ export class World {
     if (!win || win.state === 'reinforced') return false;
     win.state = 'barricaded';
     win._hp = 80;
-    if (!win.board) {
-      const alongX = win.alongX;
-      const mat = this.gfx.mat('siding', { repeat: 1 });
-      const facade = this._facadeSide(win.x, win.z);
-      const room = facade ? null : this._roomAt(win.x, win.z, win.floor);
-      win.board = this._box(alongX ? win.w : 0.07, win.h, alongX ? 0.07 : win.w, mat, win.x, win.y + win.sill + win.h / 2, win.z, { static: false, collide: true, room: room?.id, facade });
+    win.peek = false; win.peekY = null; win._peeked = 0;
+    this._buildBarricadeSlats(win);
+    if (win.board) win.board.visible = true;
+    for (const s of win.slats || []) s.visible = true;
+    return true;
+  }
+
+  _buildBarricadeSlats(win) {
+    if (win.slats?.length) return;
+    const alongX = win.alongX;
+    const mat = this.gfx.mat('siding', { repeat: 1 });
+    const facade = this._facadeSide(win.x, win.z);
+    const room = facade ? null : this._roomAt(win.x, win.z, win.floor);
+    const n = 5;
+    const slatH = (win.h || 1.25) / n;
+    const y0 = (win.y || 0) + (win.sill || 0);
+    win.slats = [];
+    for (let i = 0; i < n; i++) {
+      const y = y0 + slatH * (i + 0.5);
+      const m = this._box(alongX ? win.w : 0.07, slatH - 0.01, alongX ? 0.07 : win.w, mat, win.x, y, win.z, {
+        static: false, collide: true, room: room?.id, facade,
+      });
+      m.userData.window = win;
+      m.userData.slat = i;
+      m.userData.slatY = y;
+      win.slats.push(m);
     }
-    win.board.visible = true;
+    win.board = win.slats[0];
+  }
+
+  /** First melee opens a peek hole in one slat; a second melee knocks the board down. */
+  peekBarricade(win, hitY) {
+    if (!win || win.state !== 'barricaded') return false;
+    this._buildBarricadeSlats(win);
+    const slats = (win.slats || []).filter(s => s.visible);
+    if (!slats.length) return false;
+    let pick = slats[Math.floor(slats.length / 2)];
+    if (hitY != null) {
+      let bd = 1e9;
+      for (const s of slats) {
+        const d = Math.abs((s.userData.slatY || 0) - hitY);
+        if (d < bd) { bd = d; pick = s; }
+      }
+    }
+    pick.visible = false;
+    if (pick.userData && pick.parent) {
+      // drop collision for the missing slat
+      const box = this.boxes.find(b => b.mesh === pick);
+      if (box) box.solid = false;
+    }
+    win.peek = true;
+    win.peekY = pick.userData.slatY;
+    win._peeked = (win._peeked || 0) + 1;
+    try { sfx.break(); } catch {}
+    if (win._peeked >= 2) {
+      for (const s of win.slats) s.visible = false;
+      win.state = 'intact';
+      win.peek = false;
+    }
     return true;
   }
 
@@ -1174,6 +1240,54 @@ export class World {
     return null;
   }
 
+
+  _buildGaps() {
+    this.droneGaps = [];
+    const metal = this.gfx.mat?.('metal', { repeat: 1, color: 0x3a3d42 }) || this.gfx.basic(0x3a3d42, { roughness: 0.55, metalness: 0.6 });
+    const wood = this.gfx.mat?.('table', { repeat: 1, color: 0x5a3a22 }) || this.gfx.basic(0x5a3a22, { roughness: 0.8, metalness: 0.1 });
+    for (const g of DRONE_GAPS) {
+      const fl = floorY(g.floor);
+      const y0 = fl + g.y0, y1 = fl + g.y1;
+      const h = y1 - y0, midY = (y0 + y1) / 2;
+      const alongX = g.alongX;
+      const facade = this._facadeSide?.(g.x, g.z);
+      const room = facade ? null : this._roomAt(g.x, g.z, g.floor);
+      const frameMat = g.kind === 'board' ? wood : metal;
+      const w = g.w, thick = 0.06;
+      // Frame around the opening — collision already punched via _openingSpans.
+      const fw = alongX ? w + 0.06 : thick;
+      const fd = alongX ? thick : w + 0.06;
+      const frame = this._box(fw, h + 0.05, fd, frameMat, g.x, midY, g.z, { static: true, collide: false, receive: true, room: room?.id, facade });
+      // One slat / broken board so the hole reads as a vent, not a missing wall.
+      if (g.kind === 'vent' || g.kind === 'window-corner') {
+        this._box(alongX ? w * 0.7 : 0.02, 0.02, alongX ? 0.02 : w * 0.7, frameMat, g.x, midY, g.z, { static: true, collide: false, room: room?.id, facade });
+      } else if (g.kind === 'board') {
+        this._box(alongX ? w * 0.45 : 0.03, 0.04, alongX ? 0.03 : w * 0.45, wood, g.x + (alongX ? -0.08 : 0), midY + 0.02, g.z + (alongX ? 0 : -0.08), { static: true, collide: false, room: room?.id, facade });
+      }
+      this.droneGaps.push({
+        ...g, y0, y1, midY, mesh: frame,
+        x: g.x, z: g.z, alongX, w,
+      });
+    }
+  }
+
+  nearestDroneGap(pos, toward = null) {
+    let best = null, bd = 1e9;
+    for (const g of this.droneGaps || []) {
+      const d = Math.hypot(g.x - pos.x, g.z - pos.z);
+      let score = d;
+      if (toward) {
+        const after = Math.hypot(g.x - toward.x, g.z - toward.z);
+        const now = Math.hypot(pos.x - toward.x, pos.z - toward.z);
+        if (after < now - 0.4) score *= 0.65;
+      }
+      const dy = Math.abs(((g.y0 + g.y1) / 2) - (pos.y || 0));
+      if (dy > 2.2) continue;
+      if (score < bd) { bd = score; best = g; }
+    }
+    return best;
+  }
+
   nearestDoor(pos, max = 1.6) {
     let best = null, bd = max;
     for (const d of this.doors) {
@@ -1286,16 +1400,18 @@ World.prototype._decal = function(w, h, mat, x, y, z, opt = {}) {
 };
 
 World.prototype._roomAt = function(x, z, floor) {
-  let best = null, bestD = 1e9;
+  let best = null, bestD = 1e9, loose = null, looseD = 1e9;
+  const pad = 0.7;
   for (const r of ROOMS) {
     if (floor && r.floor !== floor) continue;
-    const pad = 0.7;
-    if (x >= r.x0 - pad && x <= r.x1 + pad && z >= r.z0 - pad && z <= r.z1 + pad) {
-      const d = Math.hypot(x - (r.x0 + r.x1) / 2, z - (r.z0 + r.z1) / 2);
+    const d = Math.hypot(x - (r.x0 + r.x1) / 2, z - (r.z0 + r.z1) / 2);
+    if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) {
       if (d < bestD) { bestD = d; best = r; }
+    } else if (x >= r.x0 - pad && x <= r.x1 + pad && z >= r.z0 - pad && z <= r.z1 + pad) {
+      if (d < looseD) { looseD = d; loose = r; }
     }
   }
-  return best;
+  return best || loose;
 };
 
 World.prototype._facadeSide = function(x, z) {
@@ -1433,6 +1549,7 @@ World.prototype.cull = function(camera) {
     fg.visible = onNear;
   }
   for (const o of this.dynGroup?.children || []) {
+    if (o.userData?.feedHide) { o.visible = false; continue; }
     const p = o.position;
     if (outside) {
       const onNear = (cp.z < b.z0 && p.z < b.z0 + 1.5)
