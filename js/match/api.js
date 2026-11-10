@@ -1,10 +1,10 @@
 /** Public Match API. See docs/MATCH-API.md. */
 
-import { PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, DEFAULT_BEST_OF } from '../config.js?v=iv-4.1.0';
-import { normalizeDifficulty } from '../difficulty.js?v=iv-4.1.0';
-import { getOp, listSide } from '../operators.js?v=iv-4.1.0';
-import { createBus } from './events.js?v=iv-4.1.0';
-import { collectStats, listPawns, ensureStat } from './stats.js?v=iv-4.1.0';
+import { PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, DEFAULT_BEST_OF } from '../config.js?v=iv-4.1.1';
+import { normalizeDifficulty } from '../difficulty.js?v=iv-4.1.1';
+import { getOp, listSide } from '../operators.js?v=iv-4.1.1';
+import { createBus } from './events.js?v=iv-4.1.1';
+import { collectStats, listPawns, ensureStat } from './stats.js?v=iv-4.1.1';
 
 export const MAP_IDS = {
   halcyon: 'halcyon',

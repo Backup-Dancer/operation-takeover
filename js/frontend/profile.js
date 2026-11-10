@@ -1,4 +1,4 @@
-import { PLAYER_DEFAULT, DAILY_CHALLENGES, INDUCTION, FIELD_PASS } from './data.js?v=iv-4.1.0';
+import { PLAYER_DEFAULT, DAILY_CHALLENGES, INDUCTION, FIELD_PASS } from './data.js?v=iv-4.1.1';
 
 const KEY = 'ironveil-profile-v4';
 

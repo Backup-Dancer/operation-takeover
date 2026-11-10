@@ -1,17 +1,17 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from '../operators.js?v=iv-4.1.0';
-import { loadLore, loreFor, loreUnits } from '../menu/lore.js?v=iv-4.1.0';
-import { cardUrl, hasPortrait, loadBust } from '../menu/portraits.js?v=iv-4.1.0';
-import { WEAPONS, UTIL, makeLoadout } from '../weapons.js?v=iv-4.1.0';
-import { saveSettings } from '../settings.js?v=iv-4.1.0';
-import { BUILD, TITLE, MAP_NAME } from '../config.js?v=iv-4.1.0';
-import { playLoop, playStinger, stopMusic, unlock as unlockAudio } from '../audio.js?v=iv-4.1.0';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from '../operators.js?v=iv-4.1.1';
+import { loadLore, loreFor, loreUnits } from '../menu/lore.js?v=iv-4.1.1';
+import { cardUrl, hasPortrait, loadBust } from '../menu/portraits.js?v=iv-4.1.1';
+import { WEAPONS, UTIL, makeLoadout } from '../weapons.js?v=iv-4.1.1';
+import { saveSettings } from '../settings.js?v=iv-4.1.1';
+import { BUILD, TITLE, MAP_NAME } from '../config.js?v=iv-4.1.1';
+import { playLoop, playStinger, stopMusic, unlock as unlockAudio } from '../audio.js?v=iv-4.1.1';
 import {
   MAPS, MODES, TIPS, GUNSMITH_SLOTS, GUNSMITH_OPTS,
   mapById, modeById, mapArtUrl, FIRETEAM_BOTS, RIVAL_BOTS,
 } from './data.js';
-import { loadProfile, saveProfile, winRate, challengeState, applyMatchRewards, INDUCTION, FIELD_PASS } from './profile.js?v=iv-4.1.0';
-import { startMatch, bindHooks, mockMatchResult, peekMatchApi, matchSnapshot } from './match-adapter.js?v=iv-4.1.0';
-import { GamepadNav } from './nav.js?v=iv-4.1.0';
+import { loadProfile, saveProfile, winRate, challengeState, applyMatchRewards, INDUCTION, FIELD_PASS } from './profile.js?v=iv-4.1.1';
+import { startMatch, bindHooks, mockMatchResult, peekMatchApi, matchSnapshot, snapshotFromApi, isCompleteSnapshot, richerSnapshot, isStrictlyRicher } from './match-adapter.js?v=iv-4.1.1';
+import { GamepadNav } from './nav.js?v=iv-4.1.1';
 
 const MENU_LOOP = 'main_menu_loop';
 const QUEUE_LOOP = 'matchmaking_loop';
@@ -76,8 +76,12 @@ export class FrontEnd {
       const show = ui.show.bind(ui);
       ui.show = (id) => {
         if (id === 'end') {
-          // Gameplay still calls this at match end; route to the new flow.
-          const snap = this._liveResult();
+          // Prefer the frozen matchend snapshot (taken before quit clears bots).
+          const snap = isCompleteSnapshot(this.lastResult)
+            ? this.lastResult
+            : (g._matchEndSnapshot
+              ? snapshotFromApi(g._matchEndSnapshot, g)
+              : this._liveResult());
           this.beginMatchEnd(snap);
           return;
         }
@@ -158,7 +162,7 @@ export class FrontEnd {
     if (a === 'start') return this.beginQueue();
     if (a === 'cancel-queue') return this.cancelQueue();
     if (a === 'next-game') return this.beginQueue();
-    if (a === 'to-lobby') { this.lastResult = null; return this.show('lobby'); }
+    if (a === 'to-lobby') { this.lastResult = null; this._endOpen = false; return this.show('lobby'); }
     if (a === 'to-main') return this.show('main');
     if (a === 'set-mode') { this.sel.mode = v; if (v === 'practice') return this.show('practice', { push: true }); this._paintLobby(); this.nav.refresh(); return; }
     if (a === 'set-map') { this.sel.map = v; this._paintLobby(); this._paintPractice(); this.nav.refresh(); return; }
@@ -941,6 +945,7 @@ export class FrontEnd {
 
   async _launch() {
     const mock = this.test.mockMatch;
+    this._endOpen = false;
     try {
       if (mock) {
         const result = mockMatchResult({ ...this.sel, callsign: this.profile.callsign });
@@ -985,19 +990,35 @@ export class FrontEnd {
   }
 
   beginMatchEnd(result) {
+    let incoming = result;
+    if (this.game?._matchEndSnapshot) {
+      incoming = richerSnapshot(incoming, snapshotFromApi(this.game._matchEndSnapshot, this.game));
+    }
+    // Last chance: freeze live pawns before quit if we still don't have 10 rows.
+    if (!isCompleteSnapshot(incoming) && this.game?.bots?.length) {
+      incoming = matchSnapshot(this.game);
+    }
+    incoming = richerSnapshot(incoming, this.lastResult);
+    const alreadyComplete = isCompleteSnapshot(this.lastResult);
     if (this.game.running) {
       try { this.game.quit(false); } catch {}
     }
+    // Do not let a later call (ui.show('end') or the _endRound wrapper)
+    // overwrite a complete snapshot or restart the slam after teardown.
+    if (this._endOpen && alreadyComplete && !isStrictlyRicher(incoming, this.lastResult)) {
+      return;
+    }
+    this.lastResult = incoming || result;
+    this.lastRewards = applyMatchRewards(this.profile, this.lastResult);
+    this._paintChrome();
+    this._endStep = 0;
+    this._endOpen = true;
     document.getElementById('menus')?.classList.remove('hidden');
     document.getElementById('hud')?.classList.add('hidden');
     document.getElementById('touch')?.classList.add('hidden');
     stopMusic();
-    this.lastResult = result;
-    this.lastRewards = applyMatchRewards(this.profile, result);
-    this._paintChrome();
-    this._endStep = 0;
     this.show('slam');
-    playStinger(result.won ? 'stinger_win' : 'stinger_loss');
+    playStinger(this.lastResult?.won ? 'stinger_win' : 'stinger_loss');
     if (this.test.autoAdvance === false) return;
     const wait = this.test.instantQueues ? 350 : 1600;
     this._endTimer && clearTimeout(this._endTimer);

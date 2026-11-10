@@ -3,11 +3,11 @@
  *  can drop in without changing this controller. The main renderer
  *  camera is reused — no extra render targets. */
 import * as THREE from 'three';
-import { sfx } from './audio.js?v=iv-4.1.0';
-import { floorY } from './map.js?v=iv-4.1.0';
-import { camLabel, scorePopup } from './banners.js?v=iv-4.1.0';
-import { worldMove, applyLook } from './match/axes.js?v=iv-4.1.0';
-import { addScore } from './match/stats.js?v=iv-4.1.0';
+import { sfx } from './audio.js?v=iv-4.1.1';
+import { floorY } from './map.js?v=iv-4.1.1';
+import { camLabel, scorePopup } from './banners.js?v=iv-4.1.1';
+import { worldMove, applyLook } from './match/axes.js?v=iv-4.1.1';
+import { addScore } from './match/stats.js?v=iv-4.1.1';
 
 export const DRONE = {
   radius: 0.11,

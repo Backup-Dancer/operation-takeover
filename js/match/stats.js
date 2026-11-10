@@ -24,7 +24,7 @@ export function ensureStat(pawn, extra = {}) {
   if (!pawn) return null;
   if (!pawn.stat) {
     pawn.stat = {
-      id: pawn.id || pawn.opId || (pawn === extra.player ? 'player' : 'bot'),
+      id: pawn === extra.player ? (pawn.id || 'player') : (pawn.id || pawn.opId || 'bot'),
       name: pawn.op?.name || pawn.name || pawn.opId || 'Operator',
       opId: pawn.opId || pawn.op?.id || null,
       team: pawn.team,
@@ -132,7 +132,60 @@ export function listPawns(game) {
   return [game.player, ...(game.bots || [])].filter(Boolean);
 }
 
+export function cloneJson(v) {
+  return v == null ? v : JSON.parse(JSON.stringify(v));
+}
+
+/** Immutable copy of a stats payload (players, mvpId, highlights). */
+export function cloneStats(stats) {
+  const players = (stats?.players || []).map(p => ({
+    ...p,
+    points: p.points && typeof p.points === 'object' && !Array.isArray(p.points)
+      ? { ...p.points }
+      : p.points,
+  }));
+  return {
+    players,
+    mvpId: stats?.mvpId ?? players[0]?.id ?? players[0]?.opId ?? null,
+    highlights: (stats?.highlights || []).map(h => ({ ...h })),
+  };
+}
+
+/**
+ * Freeze the official matchend payload while all 10 operators are still
+ * in the world. This is the single source for highlights, scoreboard and MVP
+ * after the front end tears the session down (quit clears bots).
+ */
+export function freezeMatchEnd(game, extra = {}) {
+  const stats = cloneStats(extra.stats || collectStats(game));
+  stats.players.sort((a, b) => b.score - a.score || b.k - a.k || ((b.plants || 0) + (b.defuses || 0)) - ((a.plants || 0) + (a.defuses || 0)));
+  stats.mvpId = stats.players[0]?.id || stats.players[0]?.opId || null;
+  const mvp = stats.players.find(p => p.id === stats.mvpId) || stats.players[0] || null;
+  const score = extra.score || {
+    attack: game.round?.scoreAtk ?? 0,
+    defend: game.round?.scoreDef ?? 0,
+    need: game.round?.need ?? 2,
+  };
+  const snap = {
+    winner: extra.winner ?? game.round?.winner,
+    score: { attack: score.attack ?? 0, defend: score.defend ?? 0, need: score.need ?? 2 },
+    stats,
+    mvp: mvp ? { ...mvp, points: mvp.points && typeof mvp.points === 'object' ? { ...mvp.points } : mvp.points } : null,
+    highlights: stats.highlights,
+    side: extra.side || game.player?.team || 'attack',
+    map: extra.map || game.cfg?.map || 'halcyon',
+    mode: extra.mode || game.cfg?.mode || 'bomb-rush',
+  };
+  game._matchEndSnapshot = snap;
+  return cloneJson(snap);
+}
+
 export function collectStats(game) {
+  // After teardown, bots are gone — serve the frozen matchend snapshot.
+  const frozen = game?._matchEndSnapshot?.stats;
+  if (frozen && (game.ended || !game.bots || game.bots.length === 0)) {
+    return cloneStats(frozen);
+  }
   const players = listPawns(game).map(p => {
     const st = ensureStat(p, { player: game.player });
     return { ...st, points: { ...st.points }, bot: p !== game.player };

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HUMAN } from './config.js?v=iv-4.1.0';
+import { HUMAN } from './config.js?v=iv-4.1.1';
 
 const H = HUMAN.height;
 const HEAD = HUMAN.head;

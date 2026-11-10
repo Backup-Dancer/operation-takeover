@@ -1,6 +1,6 @@
-import { BUILD, TITLE } from './version.js?v=iv-4.1.0';
-import { Game } from './game.js?v=iv-4.1.0';
-import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.0';
+import { BUILD, TITLE } from './version.js?v=iv-4.1.1';
+import { Game } from './game.js?v=iv-4.1.1';
+import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.1';
 
 const meta = document.querySelector('meta[name=build]');
 if (meta && meta.content !== BUILD && !new URLSearchParams(location.search).get('v')) {

@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.0';
-import { getOp, listSide } from './operators.js?v=iv-4.1.0';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.0';
-import { isHostile } from './combat.js?v=iv-4.1.0';
-import { SPEED } from './config.js?v=iv-4.1.0';
-import { difficultyParams } from './difficulty.js?v=iv-4.1.0';
-import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt } from './match/vision.js?v=iv-4.1.0';
-import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.0';
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.1';
+import { getOp, listSide } from './operators.js?v=iv-4.1.1';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.1';
+import { isHostile } from './combat.js?v=iv-4.1.1';
+import { SPEED } from './config.js?v=iv-4.1.1';
+import { difficultyParams } from './difficulty.js?v=iv-4.1.1';
+import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt } from './match/vision.js?v=iv-4.1.1';
+import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.1';
 
 export function spawnBots(game) {
   const bots = [];
@@ -18,8 +18,14 @@ export function spawnBots(game) {
     const op = roster.find(o => !used.has(o.id)) || roster[i % roster.length];
     used.add(op.id);
     const spawn = pickSpawn(game, side, i);
+    let pawnId = op.id;
+    let n = 2;
+    while (pawnId === 'player' || pawnId === game.player?.id || bots.some(x => x.id === pawnId)) {
+      pawnId = op.id + '-' + n;
+      n += 1;
+    }
     const b = {
-      kind: 'operator', team: side, op, opId: op.id, alive: true, hp: difficultyParams(game.cfg?.difficulty).hp,
+      id: pawnId, kind: 'operator', team: side, op, opId: op.id, alive: true, hp: difficultyParams(game.cfg?.difficulty).hp,
       armor: op.armor, speed: op.speed,
       pos: new THREE.Vector3(spawn.x, spawn.y, spawn.z),
       yaw: spawn.yaw || 0, pitch: 0, stance: 0, lean: 0, ads: 0,

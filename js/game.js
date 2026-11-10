@@ -1,31 +1,31 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.0';
-import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.0';
-import { Gfx } from './gfx.js?v=iv-4.1.0';
-import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.0';
-import { mulberry32 } from './math.js?v=iv-4.1.0';
-import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.0';
-import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat } from './match/stats.js?v=iv-4.1.0';
-import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.0';
-import { pickSafeAttackSpawn, inBuilding } from './match/vision.js?v=iv-4.1.0';
-import { Input } from './input.js?v=iv-4.1.0';
-import { UI } from './ui.js?v=iv-4.1.0';
-import { World } from './world.js?v=iv-4.1.0';
-import { Nav } from './nav.js?v=iv-4.1.0';
-import { getOp } from './operators.js?v=iv-4.1.0';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.0';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.0';
-import { Gadgets } from './gadgets.js?v=iv-4.1.0';
-import * as combat from './combat.js?v=iv-4.1.0';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.0';
-import { DroneSys } from './drone.js?v=iv-4.1.0';
-import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.0';
-import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.0';
-import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.0';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.0';
-import { buildHuman, measure } from './characters.js?v=iv-4.1.0';
-import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.0';
-import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.0';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.1';
+import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.1';
+import { Gfx } from './gfx.js?v=iv-4.1.1';
+import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.1';
+import { mulberry32 } from './math.js?v=iv-4.1.1';
+import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.1';
+import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat, freezeMatchEnd } from './match/stats.js?v=iv-4.1.1';
+import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.1';
+import { pickSafeAttackSpawn, inBuilding } from './match/vision.js?v=iv-4.1.1';
+import { Input } from './input.js?v=iv-4.1.1';
+import { UI } from './ui.js?v=iv-4.1.1';
+import { World } from './world.js?v=iv-4.1.1';
+import { Nav } from './nav.js?v=iv-4.1.1';
+import { getOp } from './operators.js?v=iv-4.1.1';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.1';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.1';
+import { Gadgets } from './gadgets.js?v=iv-4.1.1';
+import * as combat from './combat.js?v=iv-4.1.1';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.1';
+import { DroneSys } from './drone.js?v=iv-4.1.1';
+import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.1';
+import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.1';
+import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.1';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.1';
+import { buildHuman, measure } from './characters.js?v=iv-4.1.1';
+import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.1';
+import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.1';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }
@@ -47,6 +47,7 @@ export class Game {
       this.ended = false;
       this.inMenu = true;
       this.time = 0;
+      this.timeScale = 1;
       this.godMode = false;
       this.bots = [];
       this.round = null;
@@ -146,6 +147,8 @@ export class Game {
     this.cfg = { ...config };
     this._rng = mulberry32(config.seed);
     this.ended = false;
+    this._matchEndSnapshot = null;
+    this.timeScale = 1;
     this.godMode = !!cfg.godMode || !!config.godMode || this.godMode;
     // world
     if (this.world) this.world.dispose();
@@ -170,6 +173,8 @@ export class Game {
     const side = this.cfg.side || 'attack';
     const op = getOp(this.cfg.operator || this.cfg.atkOp || this.cfg.defOp || this.settings.operator[side], side);
     this.player = createPlayer(this);
+    this.player.id = 'player';
+    this.player.kind = 'player';
     this.player.team = side;
     this.player.op = op; this.player.opId = op.id;
     this.player.speed = op.speed; this.player.armor = op.armor;
@@ -321,10 +326,14 @@ export class Game {
       this.gfx.render();
       return;
     }
-    this.time += dt;
+    // timeScale is a test/debug speedup (integer substeps, default 1).
+    const steps = Math.min(16, Math.max(1, Math.round(this.timeScale || 1)));
     this.input.pollPad();
-    this.tick(dt);
-    this.gfx.tickAuto(dt);
+    for (let i = 0; i < steps; i++) {
+      this.time += dt;
+      this.tick(dt);
+      this.gfx.tickAuto(dt);
+    }
     this.gfx.render();
   }
 
@@ -881,21 +890,25 @@ export class Game {
     announce(this.player.team === winner ? 'win' : 'lose');
     this.toast((winner === 'attack' ? 'Attack' : 'Defense') + ' wins the round (' + why + ')');
     const stats = collectStats(this);
+    const score = { attack: this.round.scoreAtk, defend: this.round.scoreDef, need: this.round.need };
     this.emitMatch?.('roundend', {
       round: this.round.n, winner, reason: reasonKey, clutch, flawless,
-      score: { attack: this.round.scoreAtk, defend: this.round.scoreDef, need: this.round.need },
-      stats, highlights: stats.highlights,
+      score, stats, highlights: stats.highlights,
     });
     if (this.round.scoreAtk >= this.round.need || this.round.scoreDef >= this.round.need) {
       this.round.winner = this.round.scoreAtk > this.round.scoreDef ? 'attack' : 'defend';
       this.ended = true;
       this.round.phase = 'matchend';
-      this.emitMatch?.('matchend', {
+      // Freeze all 10 operators + K/A/D/score + MVP before the front end quits.
+      const snap = freezeMatchEnd(this, {
         winner: this.round.winner,
-        score: { attack: this.round.scoreAtk, defend: this.round.scoreDef, need: this.round.need },
-        stats, mvp: stats.players.find(p => p.id === stats.mvpId) || stats.players[0],
-        highlights: stats.highlights,
+        score,
+        stats,
+        side: this.player?.team,
+        map: this.cfg?.map,
+        mode: this.cfg?.mode,
       });
+      this.emitMatch?.('matchend', snap);
       this.inMenu = true;
       this.ui.show('end');
       return;

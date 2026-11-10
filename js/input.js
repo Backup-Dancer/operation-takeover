@@ -1,6 +1,6 @@
-import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-4.1.0';
-import { stickFromDelta, moveFromPad, lookFromDrag, lookFromPad } from './match/axes.js?v=iv-4.1.0';
-import { aimAssistScale } from './match/combat.js?v=iv-4.1.0';
+import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-4.1.1';
+import { stickFromDelta, moveFromPad, lookFromDrag, lookFromPad } from './match/axes.js?v=iv-4.1.1';
+import { aimAssistScale } from './match/combat.js?v=iv-4.1.1';
 
 /** Clockwise degrees from the device's natural portrait. */
 export function screenOrientationAngle() {

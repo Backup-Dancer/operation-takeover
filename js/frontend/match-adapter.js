@@ -17,8 +17,8 @@
  * and wraps _endRound / quit so screens stay testable. No in-match edits.
  * Re-check with: git show wip/v4-gameplay:docs/MATCH-API.md
  */
-import { mapById, modeById, FIRETEAM_BOTS, RIVAL_BOTS } from './data.js?v=iv-4.1.0';
-import { getOp, listSide } from '../operators.js?v=iv-4.1.0';
+import { mapById, modeById, FIRETEAM_BOTS, RIVAL_BOTS } from './data.js?v=iv-4.1.1';
+import { getOp, listSide } from '../operators.js?v=iv-4.1.1';
 
 const CHECK_MS = 15000;
 let _apiText = null;
@@ -54,7 +54,7 @@ export function buildStartOpts(sel) {
     difficulty: sel.difficulty || 'veteran',
     side: sel.side || 'attack',
     operator: sel.operator,
-    bestOf: mode.bestOf,
+    bestOf: sel.bestOf || mode.bestOf,
     kind: mode.kind,
     practiceKind: sel.practiceKind || null, // 'range' | 'explore'
     sitePair: sel.sitePair,
@@ -179,6 +179,9 @@ export function roundFromApi(e, game) {
 }
 
 export function snapshotFromApi(e, game) {
+  if ((!e?.stats?.players || !e.stats.players.length) && game?._matchEndSnapshot) {
+    e = game._matchEndSnapshot;
+  }
   const officialStats = e?.stats || {};
   const players = officialStats.players || e?.players || [];
   const mvpRow = (e?.mvp && typeof e.mvp === 'object' && e.mvp.id)
@@ -296,7 +299,39 @@ export function roundSnapshot(game, winner, why) {
   };
 }
 
+export function isCompleteSnapshot(r) {
+  if (!r) return false;
+  const rows = r.rows || r.stats?.players || [];
+  const atk = rows.filter(x => x.team === 'attack').length;
+  const def = rows.filter(x => x.team === 'defend').length;
+  return atk >= 5 && def >= 5;
+}
+
+function rowCount(r) {
+  return (r?.rows || r?.stats?.players || []).length;
+}
+function scoreSum(r) {
+  return (r?.rows || r?.stats?.players || []).reduce((s, p) => s + (p.score || 0) + (p.k || 0), 0);
+}
+
+export function richerSnapshot(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const completeA = isCompleteSnapshot(a);
+  const completeB = isCompleteSnapshot(b);
+  if (completeA && !completeB) return a;
+  if (completeB && !completeA) return b;
+  if (rowCount(a) !== rowCount(b)) return rowCount(a) > rowCount(b) ? a : b;
+  return scoreSum(a) >= scoreSum(b) ? a : b;
+}
+
+export function isStrictlyRicher(a, b) {
+  if (!a || !b) return !!a && !b;
+  return rowCount(a) > rowCount(b) || (rowCount(a) === rowCount(b) && scoreSum(a) > scoreSum(b));
+}
+
 export function matchSnapshot(game) {
+  if (game?._matchEndSnapshot) return snapshotFromApi(game._matchEndSnapshot, game);
   const rows = collectRows(game);
   const player = rows.find(r => r.you) || rows[0];
   const won = game.round?.winner === (game.player?.team || 'attack');

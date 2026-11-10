@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { EYE, COL_H, COL_R, SPEED, ADS_IN, ADS_OUT, SPRINT_OUT_FIRE, SPRINT_OUT_ADS, CANCEL_READY } from './config.js?v=iv-4.1.0';
-import { clamp, damp, wrapPi, angDiff } from './math.js?v=iv-4.1.0';
-import { worldMove, applyLook } from './match/axes.js?v=iv-4.1.0';
-import { recoverRecoil } from './match/combat.js?v=iv-4.1.0';
-import { surfaceAt } from './match/vision.js?v=iv-4.1.0';
-import { footstep } from './audio.js?v=iv-4.1.0';
-import { OPTIC_ZOOM } from './weapons.js?v=iv-4.1.0';
+import { EYE, COL_H, COL_R, SPEED, ADS_IN, ADS_OUT, SPRINT_OUT_FIRE, SPRINT_OUT_ADS, CANCEL_READY } from './config.js?v=iv-4.1.1';
+import { clamp, damp, wrapPi, angDiff } from './math.js?v=iv-4.1.1';
+import { worldMove, applyLook } from './match/axes.js?v=iv-4.1.1';
+import { recoverRecoil } from './match/combat.js?v=iv-4.1.1';
+import { surfaceAt } from './match/vision.js?v=iv-4.1.1';
+import { footstep } from './audio.js?v=iv-4.1.1';
+import { OPTIC_ZOOM } from './weapons.js?v=iv-4.1.1';
 
 export function createPlayer(game) {
   const p = {
