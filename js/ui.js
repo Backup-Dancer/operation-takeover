@@ -1,9 +1,9 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-3.6.2';
-import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-3.6.2';
-import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-3.6.2';
-import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-3.6.2';
-import { saveSettings, DEFAULTS } from './settings.js?v=iv-3.6.2';
-import { QUALITY, TITLE, BUILD } from './config.js?v=iv-3.6.2';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-3.6.3';
+import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-3.6.3';
+import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-3.6.3';
+import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-3.6.3';
+import { saveSettings, DEFAULTS } from './settings.js?v=iv-3.6.3';
+import { QUALITY, TITLE, BUILD } from './config.js?v=iv-3.6.3';
 
 export class UI {
   constructor(game) {

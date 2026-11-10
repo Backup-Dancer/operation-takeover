@@ -1,4 +1,4 @@
-import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.6.2';
+import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.6.3';
 
 /** Clockwise degrees from the device's natural portrait. */
 export function screenOrientationAngle() {

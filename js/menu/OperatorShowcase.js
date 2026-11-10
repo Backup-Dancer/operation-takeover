@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.6.2';
-import { getOp } from '../operators.js?v=iv-3.6.2';
-import { loreFor } from './lore.js?v=iv-3.6.2';
-import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.6.2';
+import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.6.3';
+import { getOp } from '../operators.js?v=iv-3.6.3';
+import { loreFor } from './lore.js?v=iv-3.6.3';
+import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.6.3';
 
 /**
  * Siege-style 3D operator turntable, scissored into #op-showcase.
@@ -35,10 +35,10 @@ export class OperatorShowcase {
   }
 
   _buildStage() {
-    const hemi = new THREE.HemisphereLight(0xf0e6d8, 0x2a2622, 0.36);
-    const key = new THREE.DirectionalLight(0xfff1dc, 2.55);
+    const hemi = new THREE.HemisphereLight(0xe8eaef, 0x2a2c32, 0.42);
+    const key = new THREE.DirectionalLight(0xf4f1ea, 2.15);
     key.position.set(-2.6, 3.4, 3.5);
-    const fill = new THREE.DirectionalLight(0xe8dcc8, 0.95);
+    const fill = new THREE.DirectionalLight(0xdde3ee, 1.05);
     fill.position.set(3.0, 1.7, 2.4);
     this.rim = new THREE.DirectionalLight(0xf4f6ff, 1.75);
     this.rim.position.set(1.8, 2.9, -3.4);
@@ -58,7 +58,7 @@ export class OperatorShowcase {
     const renderer = this.gfx?.renderer;
     if (this._studioEnv) {
       this.scene.environment = this._studioEnv;
-      this.scene.environmentIntensity = 0.72;
+      this.scene.environmentIntensity = 0.4;
       return;
     }
     if (!renderer) {
@@ -73,7 +73,7 @@ export class OperatorShowcase {
       this._studioEnv = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
       pmrem.dispose();
       this.scene.environment = this._studioEnv;
-      this.scene.environmentIntensity = 0.72;
+      this.scene.environmentIntensity = 0.4;
     } catch (e) {
       console.warn('showcase studio env', e);
       if (this.gfx?.env) {
@@ -144,18 +144,36 @@ export class OperatorShowcase {
     el.style.visibility = 'hidden';
   }
 
+  _clearPivot() {
+    for (const c of [...this.pivot.children]) this.pivot.remove(c);
+    this._vis = null;
+  }
+
   async show(id, accent) {
     if (id === this._id && this._vis) {
       this._tint(accent);
       this._hideBustIfReady();
       return;
     }
+    // Opening the panel and _renderOps both call show() for the default
+    // operator. Two in-flight loads of the same id used to add two meshes;
+    // switching away only removed the last, so Forge (and his copper
+    // pauldron) stayed behind every later operator.
+    if (id === this._id && this._loading) {
+      this._tint(accent);
+      return;
+    }
+    const gen = (this._loadGen = (this._loadGen || 0) + 1);
     this._id = id;
+    this._loading = true;
     this._showBust(id);
-    if (this._vis?.mesh) this.pivot.remove(this._vis.mesh);
-    this._vis = null;
+    this._clearPivot();
     const vis = await createOperatorMesh({ id, team: 'menu', accent, quality: 'high', lod: 0, skipCompact: true });
-    if (this._id !== id) return;
+    if (gen !== this._loadGen || this._id !== id) {
+      this._loading = this._loadGen !== gen ? this._loading : false;
+      return;
+    }
+    this._loading = false;
     vis.mesh.position.set(0, 0, 0);
     vis.mesh.rotation.set(0, 0, 0);
     this.pivot.add(vis.mesh);
@@ -185,7 +203,7 @@ export class OperatorShowcase {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       for (const m of mats) {
         if (env) m.envMap = env;
-        m.envMapIntensity = 0.7;
+        m.envMapIntensity = 0.4;
         if (m.emissive) m.emissive.set(0x000000);
         m.needsUpdate = true;
       }
@@ -364,8 +382,7 @@ export class OperatorShowcase {
   }
 
   dispose() {
-    if (this._vis?.mesh) this.pivot.remove(this._vis.mesh);
-    this._vis = null;
+    this._clearPivot();
     this._studioEnv = null;
   }
 }

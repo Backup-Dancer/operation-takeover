@@ -11,8 +11,8 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildHuman } from './characters.js?v=iv-3.6.2';
-import { HUMAN, SPEED } from './config.js?v=iv-3.6.2';
+import { buildHuman } from './characters.js?v=iv-3.6.3';
+import { HUMAN, SPEED } from './config.js?v=iv-3.6.3';
 
 export const PATHS = {
   reference: 'assets/models/reference/humanoid.glb',
@@ -209,8 +209,18 @@ function collectSockets(root, names) {
 function cloneGltfScene(gltf) {
   const src = gltf.scene || gltf.scenes?.[0];
   if (!src) return new THREE.Group();
-  try { return SkeletonUtils.clone(src); }
-  catch { return src.clone(true); }
+  let cloned;
+  try { cloned = SkeletonUtils.clone(src); }
+  catch { cloned = src.clone(true); }
+  // SkeletonUtils reuses materials (and compact used to dispose them, which
+  // emptied maps on the loader cache). Give each instance its own materials;
+  // textures stay shared.
+  cloned.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    if (Array.isArray(o.material)) o.material = o.material.map((m) => (m && m.clone ? m.clone() : m));
+    else if (o.material.clone) o.material = o.material.clone();
+  });
+  return cloned;
 }
 
 const _matCache = new Map();
@@ -218,6 +228,7 @@ function internMaterial(m) {
   if (!m) return m;
   const key = [
     m.type,
+    m.name || '',
     m.map?.uuid || '',
     m.normalMap?.uuid || '',
     m.roughnessMap?.uuid || '',
@@ -226,6 +237,7 @@ function internMaterial(m) {
     m.color?.isColor ? m.color.getHex() : '',
     m.roughness, m.metalness,
     m.transparent ? 1 : 0,
+    m.side,
   ].join('|');
   const hit = _matCache.get(key);
   if (hit) return hit;
@@ -440,31 +452,50 @@ function hardenMaterials(root, shadows = true) {
     const compacted = /^operator-merged/.test(o.name || '') || !!(o.userData && o.userData.atlas);
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const out = mats.map(m => {
+      const keepAlpha = /eyelash|eyebrow|short01|short03|hair|lashes|bob02|long01/i.test(`${o.name || ''} ${m.name || ''}`);
+      const side = o.isSkinnedMesh ? THREE.DoubleSide : THREE.FrontSide;
       if (m.isMeshPhysicalMaterial) {
         const sm = new THREE.MeshStandardMaterial({
           map: m.map, normalMap: m.normalMap, roughnessMap: m.roughnessMap, metalnessMap: m.metalnessMap,
           aoMap: m.aoMap, color: m.color, roughness: m.roughness ?? 0.5, metalness: m.metalness ?? 0.6,
-          envMapIntensity: 1, side: THREE.FrontSide, depthWrite: true, vertexColors: false,
+          envMapIntensity: compacted ? 0.28 : 0.4, side, depthWrite: true, vertexColors: false,
           envMap: _gfx?.env || null,
+          transparent: keepAlpha, alphaTest: keepAlpha ? 0.45 : 0,
         });
         if (sm.map) { sm.map.colorSpace = THREE.SRGBColorSpace; sm.map.needsUpdate = true; }
+        if (sm.normalMap) sm.normalMap.colorSpace = THREE.NoColorSpace;
         return sm;
       }
-      m.side = THREE.FrontSide;
-      m.depthWrite = true;
+      // Authored operator LODs are DoubleSide. FrontSide punched holes in
+      // suits (black patches) and showed inner head faces as a white mask.
+      m.side = side;
       m.vertexColors = false;
       if (m.map) { m.map.colorSpace = THREE.SRGBColorSpace; m.map.needsUpdate = true; }
       if (m.normalMap) m.normalMap.colorSpace = THREE.NoColorSpace;
       if (m.roughnessMap) m.roughnessMap.colorSpace = THREE.NoColorSpace;
       if (m.metalnessMap) m.metalnessMap.colorSpace = THREE.NoColorSpace;
       if (m.aoMap) m.aoMap.colorSpace = THREE.NoColorSpace;
+      // CC3 marks body/suit as BLEND with opacity 1 and no alpha map. That
+      // transparent pass plus FrontSide is what blew out faces and pants.
+      if (!keepAlpha && (m.opacity == null || m.opacity >= 0.999) && !m.alphaMap) {
+        m.transparent = false;
+        m.depthWrite = true;
+        m.alphaTest = 0;
+      }
+      // Push the body slightly back so the untextured suit wins z on
+      // overlapping clothing regions (black patches on tan/purple pants).
+      if (/body\b|\.body/i.test(`${o.name || ''} ${m.name || ''}`)) {
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = 1;
+        m.polygonOffsetUnits = 1;
+      }
       if (compacted) {
         // Keep the cloth-like compact IBL. Boosting this to >=0.9 made the
         // outdoor HDRI paint blue/green "C" patches on dark vests.
         if (_gfx?.env && !m.envMap) m.envMap = _gfx.env;
       } else if (_gfx?.env) {
         m.envMap = _gfx.env;
-        m.envMapIntensity = Math.max(0.9, m.envMapIntensity || 0);
+        if (m.envMapIntensity == null || m.envMapIntensity >= 0.89) m.envMapIntensity = 0.4;
       }
       if (!m.map && m.color && m.color.getHex() === 0x000000) m.color.set(0x5c5e62);
       return m;
@@ -1042,7 +1073,10 @@ const _compactTemplates = new Map();
 
 function hideMouthInternals(root) {
   if (!root) return;
-  const skipRe = /teeth_base|tongue01|\bteeth\b|\btongue\b|\bgums?\b/i;
+  // CC3/MPFB leftovers: teeth/tongue (dark lip bar) and the untextured
+  // clothing-cage "low-poly" / "Delete.low-poly" mesh (white face mask,
+  // shoulder blobs that read as a second head or a copper pauldron).
+  const skipRe = /teeth_base|tongue01|\bteeth\b|\btongue\b|\bgums?\b|low-?poly|delete\.low/i;
   const rm = [];
   root.traverse((o) => {
     if (!o.isMesh) return;
@@ -1176,7 +1210,7 @@ function compactOperatorScene(root) {
       roughness: 0.86,
       metalness: 0.02,
       envMapIntensity: 0.28,
-      side: THREE.FrontSide,
+      side: THREE.DoubleSide,
       alphaTest: alphaTest || 0,
       transparent: false,
       depthWrite: true,
@@ -1218,9 +1252,7 @@ function compactOperatorScene(root) {
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (const m of mats) {
       if (!m) continue;
-      for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
-        try { m[k]?.dispose?.(); } catch {}
-      }
+      // Maps are shared with the uncompacted loader cache and other clones.
       try { m.dispose(); } catch {}
     }
   }
@@ -1231,18 +1263,22 @@ function compactOperatorScene(root) {
 async function loadOperatorGltf(url, opts = {}) {
   const gltf = await loadGltf(url);
   if (gltf.scene) gltf.scene.userData._srcUrl = url;
-  // Keep the loader cache uncompacted. Compact a cloned template once so
-  // world instances stay at two skins, while the operator-select showcase
-  // can request the authored meshes (kit, metalness, and sleeve weights).
+  // Keep the loader cache uncompacted so the select-panel LOD0 showcase
+  // always gets authored meshes. Compact a fully isolated re-parse (not a
+  // SkeletonUtils clone) so remapping UVs or disposing geos/materials
+  // cannot poison the cache or later skipCompact clones.
   if (opts.skipCompact) {
     const scene = cloneGltfScene(gltf);
     hideMouthInternals(scene);
+    hideForeignPauldron(scene, opts.id);
     return { scene, animations: gltf.animations, userData: gltf.userData };
   }
   let template = _compactTemplates.get(url);
   if (!template) {
-    template = cloneGltfScene(gltf);
+    const isolated = await loadGltfInstance(url);
+    template = isolated.scene || isolated.scenes?.[0] || new THREE.Group();
     template.userData._srcUrl = url;
+    hideForeignPauldron(template, opts.id);
     try { compactOperatorScene(template); } catch (e) { console.warn('compact operator cache', e); }
     _compactTemplates.set(url, template);
   }
@@ -1251,6 +1287,16 @@ async function loadOperatorGltf(url, opts = {}) {
     animations: gltf.animations,
     userData: gltf.userData,
   };
+}
+
+// Copper pauldron is Forge-only. Rivet keeps her authored steel pauldron.
+function hideForeignPauldron(root, id) {
+  if (!root || id === 'forge' || id === 'rivet' || !id) return;
+  const rm = [];
+  root.traverse((o) => {
+    if (o.isMesh && /pauldron/i.test(o.name || '')) rm.push(o);
+  });
+  for (const mesh of rm) mesh.parent?.remove(mesh);
 }
 
 function installRig(vis, gltf, opts = {}) {
@@ -1285,7 +1331,7 @@ async function loadOperatorLod(vis, lod) {
   const url = (await resolveOperatorUrl(vis.id, lod)) || PATHS.reference;
   vis._loading = true;
   try {
-    const gltf = await loadOperatorGltf(url, { skipCompact: !!vis.skipCompact });
+    const gltf = await loadOperatorGltf(url, { skipCompact: !!vis.skipCompact, id: vis.id });
     vis.lod = lod;
     vis.sourceUrl = url;
     installRig(vis, gltf, {
@@ -1318,7 +1364,7 @@ export async function createOperatorMesh(opts = {}) {
 
   const tryUrl = async (url, fallback) => {
     if (!(url && await probe(url))) return false;
-    const gltf = await loadOperatorGltf(url, { skipCompact: !!opts.skipCompact });
+    const gltf = await loadOperatorGltf(url, { skipCompact: !!opts.skipCompact, id });
     vis.lod = lodHint;
     vis.sourceUrl = url;
     vis.skipTint = !fallback;
