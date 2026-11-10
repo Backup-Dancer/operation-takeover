@@ -1,4 +1,4 @@
-import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-3.6.1';
+import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-3.6.2';
 
 export const DEFAULTS = {
   quality: 'auto',

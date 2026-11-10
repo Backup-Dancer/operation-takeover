@@ -1,4 +1,4 @@
-import { BUILD, TITLE, SHORT_TITLE, MAP_NAME } from './version.js?v=iv-3.6.1';
+import { BUILD, TITLE, SHORT_TITLE, MAP_NAME } from './version.js?v=iv-3.6.2';
 
 export { BUILD, TITLE, SHORT_TITLE, MAP_NAME };
 

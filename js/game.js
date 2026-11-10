@@ -1,23 +1,23 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, EYE } from './config.js?v=iv-3.6.1';
-import { loadSettings, saveSettings } from './settings.js?v=iv-3.6.1';
-import { Gfx } from './gfx.js?v=iv-3.6.1';
-import { unlock as unlockAudio, sfx } from './audio.js?v=iv-3.6.1';
-import { Input } from './input.js?v=iv-3.6.1';
-import { UI } from './ui.js?v=iv-3.6.1';
-import { World } from './world.js?v=iv-3.6.1';
-import { Nav } from './nav.js?v=iv-3.6.1';
-import { getOp } from './operators.js?v=iv-3.6.1';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.6.1';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.6.1';
-import { Gadgets } from './gadgets.js?v=iv-3.6.1';
-import * as combat from './combat.js?v=iv-3.6.1';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.6.1';
-import { DroneSys } from './drone.js?v=iv-3.6.1';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.6.1';
-import { buildHuman, measure } from './characters.js?v=iv-3.6.1';
-import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.6.1';
-import { MenuScene } from './menu/MenuScene.js?v=iv-3.6.1';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, EYE } from './config.js?v=iv-3.6.2';
+import { loadSettings, saveSettings } from './settings.js?v=iv-3.6.2';
+import { Gfx } from './gfx.js?v=iv-3.6.2';
+import { unlock as unlockAudio, sfx } from './audio.js?v=iv-3.6.2';
+import { Input } from './input.js?v=iv-3.6.2';
+import { UI } from './ui.js?v=iv-3.6.2';
+import { World } from './world.js?v=iv-3.6.2';
+import { Nav } from './nav.js?v=iv-3.6.2';
+import { getOp } from './operators.js?v=iv-3.6.2';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.6.2';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.6.2';
+import { Gadgets } from './gadgets.js?v=iv-3.6.2';
+import * as combat from './combat.js?v=iv-3.6.2';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.6.2';
+import { DroneSys } from './drone.js?v=iv-3.6.2';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.6.2';
+import { buildHuman, measure } from './characters.js?v=iv-3.6.2';
+import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.6.2';
+import { MenuScene } from './menu/MenuScene.js?v=iv-3.6.2';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }

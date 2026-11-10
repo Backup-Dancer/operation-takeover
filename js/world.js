@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { sfx } from './audio.js?v=iv-3.6.1';
-import { MAP, FLOORS, ROOMS, DOORS, WINDOWS, HATCHES, STAIRS, SOFT_WALLS, CAMS, BOUNDS, SITE_PAIRS, SITES, SPAWNS, floorY, roomById } from './map.js?v=iv-3.6.1';
-import { COL_R } from './config.js?v=iv-3.6.1';
-import { furnish } from './props.js?v=iv-3.6.1';
+import { sfx } from './audio.js?v=iv-3.6.2';
+import { MAP, FLOORS, ROOMS, DOORS, WINDOWS, HATCHES, STAIRS, SOFT_WALLS, CAMS, BOUNDS, SITE_PAIRS, SITES, SPAWNS, floorY, roomById } from './map.js?v=iv-3.6.2';
+import { COL_R } from './config.js?v=iv-3.6.2';
+import { furnish } from './props.js?v=iv-3.6.2';
 
 const WT = 0.18; // wall thickness
 const CHUNK = 0.55;

@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.6.1';
-import { getOp } from '../operators.js?v=iv-3.6.1';
-import { loreFor } from './lore.js?v=iv-3.6.1';
-import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.6.1';
+import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.6.2';
+import { getOp } from '../operators.js?v=iv-3.6.2';
+import { loreFor } from './lore.js?v=iv-3.6.2';
+import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.6.2';
 
 /**
  * Siege-style 3D operator turntable, scissored into #op-showcase.
- * Studio three-point + RoomEnvironment IBL; idle + primary + left-hand IK
- * (select_idle is a low elbows-out squat, so it is not used here).
+ * Studio three-point + RoomEnvironment IBL; low-ready + solid TP primary
+ * + left-hand IK on the handguard (select_idle is a squat, not used here).
  */
 export class OperatorShowcase {
   constructor(menu) {
@@ -154,7 +154,7 @@ export class OperatorShowcase {
     this._showBust(id);
     if (this._vis?.mesh) this.pivot.remove(this._vis.mesh);
     this._vis = null;
-    const vis = await createOperatorMesh({ id, team: 'menu', accent, quality: 'high', lod: 0 });
+    const vis = await createOperatorMesh({ id, team: 'menu', accent, quality: 'high', lod: 0, skipCompact: true });
     if (this._id !== id) return;
     vis.mesh.position.set(0, 0, 0);
     vis.mesh.rotation.set(0, 0, 0);
@@ -233,7 +233,7 @@ export class OperatorShowcase {
     const op = getOp(this._id);
     const primary = op?.primaries?.[0] || 'carbine';
     try {
-      await attachWeaponToHand(vis, { id: primary, optic: 'red' });
+      await attachWeaponToHand(vis, { id: primary, optic: 'red' }, { solid: true });
     } catch (e) {
       console.warn('showcase weapon', e);
     }
@@ -246,14 +246,17 @@ export class OperatorShowcase {
     } else {
       console.info('showcase: select_idle passed the pose probe but is not a gun-ready stance; using idle + gun + IK');
     }
-    vis.pose('aim', 0.12);
+    // Low-ready: idle lower body + a modest aim_rifle layer and left-hand
+    // IK to ik_hand_L (handguard). Full aiming:1 pointed the muzzle at the
+    // camera so the TP gun read as a black block, with arms folded high.
+    vis.pose('idle', 0);
     const st = {
       moving: false, sprint: false,
-      clip: this._clip,
-      aiming: 1, pistol: false, hipReady: false,
+      clip: undefined,
+      aiming: 0.35, pistol: false, hipReady: true,
       dead: false, lean: 0, forceTick: true,
     };
-    for (let i = 0; i < 10; i++) vis.tick?.(0.05, st);
+    for (let i = 0; i < 12; i++) vis.tick?.(0.05, st);
   }
 
   _frameOperator() {
@@ -285,7 +288,7 @@ export class OperatorShowcase {
   _playIdle() {
     const vis = this._vis;
     if (!vis) return;
-    vis.pose(this._clip === 'select_idle' ? 'select_idle' : 'aim', 0);
+    vis.pose(this._clip === 'select_idle' ? 'select_idle' : 'idle', 0);
   }
 
   playEmote() {
@@ -319,8 +322,8 @@ export class OperatorShowcase {
       moving: false, sprint: false,
       clip: clip === 'idle' ? undefined : clip,
       pose: clip === 'idle' ? undefined : clip,
-      aiming: clip !== 'select_pick' ? 1 : 0,
-      pistol: false, hipReady: false,
+      aiming: (clip === 'select_pick' || clip === 'select_idle') ? 0 : 0.35,
+      pistol: false, hipReady: true,
       dead: false, lean: 0, forceTick: true,
     });
   }

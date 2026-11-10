@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.6.1';
-import { getOp, listSide } from './operators.js?v=iv-3.6.1';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.6.1';
-import { isHostile } from './combat.js?v=iv-3.6.1';
-import { SPEED } from './config.js?v=iv-3.6.1';
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.6.2';
+import { getOp, listSide } from './operators.js?v=iv-3.6.2';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.6.2';
+import { isHostile } from './combat.js?v=iv-3.6.2';
+import { SPEED } from './config.js?v=iv-3.6.2';
 
 const DIFF = {
   recruit: { react: 0.55, acc: 0.12, peek: 0.3 },

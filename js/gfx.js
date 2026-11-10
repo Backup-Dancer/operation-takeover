@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { QUALITY, BUDGET } from './config.js?v=iv-3.6.1';
+import { QUALITY, BUDGET } from './config.js?v=iv-3.6.2';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 
 const TEX_MAP = {

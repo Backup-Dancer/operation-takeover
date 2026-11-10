@@ -11,8 +11,8 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildHuman } from './characters.js?v=iv-3.6.1';
-import { HUMAN, SPEED } from './config.js?v=iv-3.6.1';
+import { buildHuman } from './characters.js?v=iv-3.6.2';
+import { HUMAN, SPEED } from './config.js?v=iv-3.6.2';
 
 export const PATHS = {
   reference: 'assets/models/reference/humanoid.glb',
@@ -1038,8 +1038,26 @@ function blitInto(renderer, target, srcTex, color, x, y, w, h, opts = {}) {
  * sharing one albedo/normal atlas so 8–9 operators stay inside the world
  * draw cap. Meshes that share a material also share an atlas tile.
  */
+const _compactTemplates = new Map();
+
+function hideMouthInternals(root) {
+  if (!root) return;
+  const skipRe = /teeth_base|tongue01|\bteeth\b|\btongue\b|\bgums?\b/i;
+  const rm = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+    const name = `${o.name || ''} ${mat?.name || ''}`;
+    if (skipRe.test(name)) rm.push(o);
+  });
+  for (const mesh of rm) mesh.parent?.remove(mesh);
+}
+
 function compactOperatorScene(root) {
   if (!root || root.userData._opCompact) return;
+  // Closed-mouth ready stance: teeth/tongue in the opaque atlas show up
+  // as a dark bar across the lips (BLEND hole + premultiplied black).
+  hideMouthInternals(root);
   const skinned = [];
   root.traverse((o) => { if (o.isSkinnedMesh && o.geometry) skinned.push(o); });
   if (skinned.length <= 2) { root.userData._opCompact = true; return; }
@@ -1052,16 +1070,9 @@ function compactOperatorScene(root) {
   const skeleton = skinned[0].skeleton;
   const parent = skinned[0].parent || root;
   const byMat = new Map();
-  const skipRe = /teeth_base|tongue01|\bteeth\b|\btongue\b|\bgums?\b/i;
   for (const mesh of skinned) {
     const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
     const name = `${mesh.name || ''} ${mat?.name || ''}`;
-    // Closed-mouth ready stance: teeth/tongue in the opaque atlas show up
-    // as a dark bar across the lips (BLEND hole + premultiplied black).
-    if (skipRe.test(name)) {
-      mesh.parent?.remove(mesh);
-      continue;
-    }
     const key = mat?.uuid || mesh.uuid;
     const alpha = /eyelash|eyebrow|short01|short03|hair|lashes|bob02|long01/i.test(name);
     if (!byMat.has(key)) byMat.set(key, { mat, meshes: [], alpha, name });
@@ -1217,12 +1228,26 @@ function compactOperatorScene(root) {
 }
 
 
-async function loadOperatorGltf(url) {
+async function loadOperatorGltf(url, opts = {}) {
   const gltf = await loadGltf(url);
   if (gltf.scene) gltf.scene.userData._srcUrl = url;
-  try { compactOperatorScene(gltf.scene); } catch (e) { console.warn('compact operator cache', e); }
+  // Keep the loader cache uncompacted. Compact a cloned template once so
+  // world instances stay at two skins, while the operator-select showcase
+  // can request the authored meshes (kit, metalness, and sleeve weights).
+  if (opts.skipCompact) {
+    const scene = cloneGltfScene(gltf);
+    hideMouthInternals(scene);
+    return { scene, animations: gltf.animations, userData: gltf.userData };
+  }
+  let template = _compactTemplates.get(url);
+  if (!template) {
+    template = cloneGltfScene(gltf);
+    template.userData._srcUrl = url;
+    try { compactOperatorScene(template); } catch (e) { console.warn('compact operator cache', e); }
+    _compactTemplates.set(url, template);
+  }
   return {
-    scene: cloneGltfScene(gltf),
+    scene: cloneGltfScene({ scene: template }),
     animations: gltf.animations,
     userData: gltf.userData,
   };
@@ -1230,7 +1255,10 @@ async function loadOperatorGltf(url) {
 
 function installRig(vis, gltf, opts = {}) {
   const mesh = gltf.scene || gltf.scenes?.[0] || new THREE.Group();
-  try { compactOperatorScene(mesh); } catch (e) { console.warn('compact operator', e); }
+  try {
+    if (opts.skipCompact) hideMouthInternals(mesh);
+    else compactOperatorScene(mesh);
+  } catch (e) { console.warn('compact operator', e); }
   hardenMaterials(mesh, true);
   if (!opts.skipTint) applyTint(mesh, opts);
   while (vis.mesh.children.length) vis.mesh.remove(vis.mesh.children[0]);
@@ -1257,10 +1285,14 @@ async function loadOperatorLod(vis, lod) {
   const url = (await resolveOperatorUrl(vis.id, lod)) || PATHS.reference;
   vis._loading = true;
   try {
-    const gltf = await loadOperatorGltf(url);
+    const gltf = await loadOperatorGltf(url, { skipCompact: !!vis.skipCompact });
     vis.lod = lod;
     vis.sourceUrl = url;
-    installRig(vis, gltf, { team: vis.team, accent: vis.accent, skipTint: url !== PATHS.reference && vis.skipTint });
+    installRig(vis, gltf, {
+      team: vis.team, accent: vis.accent,
+      skipTint: url !== PATHS.reference && vis.skipTint,
+      skipCompact: !!vis.skipCompact,
+    });
   } finally {
     vis._loading = false;
   }
@@ -1286,11 +1318,15 @@ export async function createOperatorMesh(opts = {}) {
 
   const tryUrl = async (url, fallback) => {
     if (!(url && await probe(url))) return false;
-    const gltf = await loadOperatorGltf(url);
+    const gltf = await loadOperatorGltf(url, { skipCompact: !!opts.skipCompact });
     vis.lod = lodHint;
     vis.sourceUrl = url;
     vis.skipTint = !fallback;
-    installRig(vis, gltf, { team: opts.team, accent: opts.accent, skipTint: !fallback });
+    vis.skipCompact = !!opts.skipCompact;
+    installRig(vis, gltf, {
+      team: opts.team, accent: opts.accent, skipTint: !fallback,
+      skipCompact: !!opts.skipCompact,
+    });
     vis.authored = isV3Root(vis.mesh);
     return true;
   };
@@ -1656,11 +1692,58 @@ export async function createWeaponViewmodel(weapon = {}) {
   }
 }
 
-export async function createWeaponWorldmodel(weapon = {}) {
+export async function createWeaponWorldmodel(weapon = {}, opts = {}) {
   const id = weaponIdOf(weapon);
   if (!id || !WEAPON_MODELS.includes(id)) return null;
   try {
     await initModelLoaders(_gfx);
+    if (opts.solid) {
+      // Full visible TP (or FP) mesh, parented to socket_weapon. Used by the
+      // operator-select showcase, which renders a different scene than the
+      // instanced world batches.
+      const url = (await probe(PATHS.weaponTp(id))) ? PATHS.weaponTp(id)
+        : (await probe(PATHS.weaponFp(id))) ? PATHS.weaponFp(id)
+        : (await probe(PATHS.weapon(id))) ? PATHS.weapon(id)
+        : null;
+      if (!url) return null;
+      const gltf = await loadGltf(url);
+      const root = new THREE.Group();
+      root.name = 'weapon-tp';
+      root.frustumCulled = false;
+      const model = cloneGltfScene(gltf);
+      hardenMaterials(model, true);
+      model.position.set(0, 0, 0);
+      model.rotation.set(0, 0, 0);
+      model.scale.set(1, 1, 1);
+      root.add(model);
+      const sockets = collectSockets(root, SOCKET_WPN);
+      root.userData.sockets = sockets;
+      root.userData.authored = true;
+      root.userData.weaponId = id;
+      root.userData.sourceUrl = url;
+      root.userData.solid = true;
+
+      const opticKind = (weapon && typeof weapon !== 'string' && weapon.optic) || null;
+      const kind = (opticKind && ATTACH_MODELS.includes(opticKind) && opticKind !== 'iron') ? opticKind : null;
+      if (kind) {
+        if (LONG_GUNS.has(id)) foldFrontSight(model, sockets.socket_optic);
+        const att = await loadAttachment(kind);
+        const sock = sockets.socket_optic || model;
+        if (att && sock) sock.add(att);
+      }
+      const extras = attachListOf(weapon).filter((a) => ATTACH_MODELS.includes(a) && a !== kind);
+      for (const a of extras) {
+        const sockName = (a === 'suppressor') ? 'socket_muzzle'
+          : (a === 'grip' || a === 'bipod') ? 'socket_grip'
+          : (a === 'laser' || a === 'light') ? 'socket_underbarrel'
+          : (a === 'stock') ? null
+          : 'socket_optic';
+        const sock = sockName ? (sockets[sockName] || model) : model;
+        const node = await loadAttachment(a);
+        if (sock && node) sock.add(node);
+      }
+      return root;
+    }
     const proto = await getTpWeaponProto(id);
     if (!proto) return null;
     const root = proto.skeleton ? proto.skeleton.clone(true) : new THREE.Group();
@@ -1690,8 +1773,10 @@ function attachListOf(weapon) {
 }
 
 /** Parent a TP weapon to socket_weapon (v3). Barrel is the socket −Z axis.
- *  Visible meshes are instanced in the world scene and follow this anchor. */
-export async function attachWeaponToHand(vis, weapon) {
+ *  Visible meshes are instanced in the world scene and follow this anchor,
+ *  unless opts.solid is set (showcase): then the real TP/FP mesh is parented
+ *  to the socket so it renders in the operator's own scene. */
+export async function attachWeaponToHand(vis, weapon, opts = {}) {
   if (!vis?.mesh) return null;
   vis._weaponId = weapon;
   vis._pendingWeapon = weapon;
@@ -1699,7 +1784,7 @@ export async function attachWeaponToHand(vis, weapon) {
   if (!socket) return null;
   releaseVisualWeapons(vis);
   if (vis._weapon && vis._weapon.parent) vis._weapon.parent.remove(vis._weapon);
-  const wpn = await createWeaponWorldmodel(weapon);
+  const wpn = await createWeaponWorldmodel(weapon, opts);
   if (!wpn) return null;
   // Weapon is Y-up, −Z forward. socket_weapon −Z is the barrel axis (bind −X, aim +Z).
   wpn.position.set(0, 0, 0);
@@ -1708,6 +1793,11 @@ export async function attachWeaponToHand(vis, weapon) {
   vis._weapon = wpn;
   vis._pendingWeapon = null;
   vis._ikOff = false;
+
+  if (opts.solid || wpn.userData.solid) {
+    vis._tpHandles = [];
+    return wpn;
+  }
 
   const scene = vis.mesh.parent || _gfx?.scene;
   const id = weaponIdOf(weapon);
