@@ -420,5 +420,47 @@ h2{margin:0;font-size:20px;letter-spacing:4px}
 #touch.feed-on #tb-cycle-l:not(.hidden),#touch.feed-on #tb-cycle-r:not(.hidden){display:flex !important}
 #touch.feed-on #tb-ping{display:none !important}
 
-body.cam-feed canvas#game{filter:grayscale(1) contrast(1.1) brightness(.92)}
-body.drone-feed canvas#game{filter:saturate(.75) contrast(1.05)}
+body.cam-feed canvas#game{filter:grayscale(1) contrast(1.18) brightness(.95)}
+/* Don't filter the drone canvas — CSS filters re-rasterize and smear ground detail. */
+body.drone-feed canvas#game{filter:none}
+body.drone-feed #drone-ov .scan{
+  background:repeating-linear-gradient(0deg,rgba(220,230,225,.07) 0 1px,transparent 1px 3px);
+  mix-blend-mode:overlay;opacity:.42;pointer-events:none}
+
+/* Hide on-foot-only HUD while in a scout or observation feed. */
+body.drone-feed #hud-health,body.cam-feed #hud-health,
+body.drone-feed #hud-ammo,body.cam-feed #hud-ammo,
+#touch.feed-on #tb-drone,#touch.feed-on #tb-cams{display:none !important}
+
+/* Siege-Mobile-style feed controls (override applyLayout inline positions).
+   Joystick stays left. Big SCAN on the right, JUMP bottom-right (drone),
+   SWITCH beside JUMP, EXIT under II/TAB. Clear of the host badge. */
+#touch.feed-on #tb-scan:not(.hidden){
+  left:auto !important;top:auto !important;transform:none !important;
+  right:calc(16px + var(--sr)) !important;
+  bottom:calc(14px + var(--sb) + var(--badge-h) + 86px) !important;
+  width:92px !important;height:92px !important;border-radius:50%;
+  font-size:14px !important;letter-spacing:1.4px;display:flex !important;
+  align-items:center;justify-content:center;z-index:5;
+  background:rgba(12,13,16,.62);border:1px solid rgba(255,255,255,.4)}
+#touch.feed-on #tb-hop:not(.hidden){
+  left:auto !important;top:auto !important;transform:none !important;
+  right:calc(16px + var(--sr)) !important;
+  bottom:calc(14px + var(--sb) + var(--badge-h)) !important;
+  width:72px !important;height:72px !important;
+  font-size:13px !important;letter-spacing:1.2px;display:flex !important;
+  align-items:center;justify-content:center;z-index:5}
+#touch.feed-on #tb-switch:not(.hidden){
+  left:auto !important;top:auto !important;transform:none !important;
+  right:calc(100px + var(--sr)) !important;
+  bottom:calc(22px + var(--sb) + var(--badge-h)) !important;
+  width:72px !important;height:48px !important;
+  font-size:12px !important;letter-spacing:1px;display:flex !important;
+  align-items:center;justify-content:center;z-index:5}
+#touch.feed-on #tb-feed-exit:not(.hidden){
+  left:calc(10px + var(--sl)) !important;right:auto !important;
+  top:calc(60px + var(--st)) !important;bottom:auto !important;
+  transform:none !important;
+  width:64px !important;height:44px !important;
+  font-size:12px !important;letter-spacing:1px;display:flex !important;
+  align-items:center;justify-content:center;z-index:5}

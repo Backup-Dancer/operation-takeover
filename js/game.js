@@ -1,26 +1,26 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-3.7.0';
-import { loadSettings, saveSettings } from './settings.js?v=iv-3.7.0';
-import { Gfx } from './gfx.js?v=iv-3.7.0';
-import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic } from './audio.js?v=iv-3.7.0';
-import { Input } from './input.js?v=iv-3.7.0';
-import { UI } from './ui.js?v=iv-3.7.0';
-import { World } from './world.js?v=iv-3.7.0';
-import { Nav } from './nav.js?v=iv-3.7.0';
-import { getOp } from './operators.js?v=iv-3.7.0';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.7.0';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.7.0';
-import { Gadgets } from './gadgets.js?v=iv-3.7.0';
-import * as combat from './combat.js?v=iv-3.7.0';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.7.0';
-import { DroneSys } from './drone.js?v=iv-3.7.0';
-import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-3.7.0';
-import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-3.7.0';
-import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, roomCallout, showScanning } from './banners.js?v=iv-3.7.0';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.7.0';
-import { buildHuman, measure } from './characters.js?v=iv-3.7.0';
-import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.7.0';
-import { MenuScene } from './menu/MenuScene.js?v=iv-3.7.0';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-3.7.1';
+import { loadSettings, saveSettings } from './settings.js?v=iv-3.7.1';
+import { Gfx } from './gfx.js?v=iv-3.7.1';
+import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic } from './audio.js?v=iv-3.7.1';
+import { Input } from './input.js?v=iv-3.7.1';
+import { UI } from './ui.js?v=iv-3.7.1';
+import { World } from './world.js?v=iv-3.7.1';
+import { Nav } from './nav.js?v=iv-3.7.1';
+import { getOp } from './operators.js?v=iv-3.7.1';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.7.1';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.7.1';
+import { Gadgets } from './gadgets.js?v=iv-3.7.1';
+import * as combat from './combat.js?v=iv-3.7.1';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.7.1';
+import { DroneSys } from './drone.js?v=iv-3.7.1';
+import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-3.7.1';
+import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-3.7.1';
+import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, roomCallout, showScanning } from './banners.js?v=iv-3.7.1';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.7.1';
+import { buildHuman, measure } from './characters.js?v=iv-3.7.1';
+import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.7.1';
+import { MenuScene } from './menu/MenuScene.js?v=iv-3.7.1';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }
@@ -833,7 +833,8 @@ export class Game {
     if (cd && (this.round.phase !== 'prep' || this.round.t > 5)) cd.classList.remove('show');
     const viewPos = (this.inDrone || this.droneSys?.active) && this.droneSys?.drone?.pos
       ? this.droneSys.drone.pos
-      : ((this.inCams || this.droneSys?.camsOn) && this.gfx?.camera?.position) || this.player.pos;
+      : ((this.inCams || this.droneSys?.camsOn) && this.droneSys?._orderedCams?.()[this.droneSys.camI])
+        || this.player.pos;
     const room = document.getElementById('hud-room');
     if (room) room.textContent = roomCallout(this.world, viewPos);
     const yaw = (this.inDrone || this.droneSys?.active) && this.droneSys?.drone

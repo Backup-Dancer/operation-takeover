@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.7.0';
-import { getOp } from '../operators.js?v=iv-3.7.0';
-import { loreFor } from './lore.js?v=iv-3.7.0';
-import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.7.0';
+import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-3.7.1';
+import { getOp } from '../operators.js?v=iv-3.7.1';
+import { loreFor } from './lore.js?v=iv-3.7.1';
+import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-3.7.1';
 
 /**
  * Siege-style 3D operator turntable, scissored into #op-showcase.

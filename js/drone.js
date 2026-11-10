@@ -3,9 +3,9 @@
  *  can drop in without changing this controller. The main renderer
  *  camera is reused — no extra render targets. */
 import * as THREE from 'three';
-import { sfx } from './audio.js?v=iv-3.7.0';
-import { floorY } from './map.js?v=iv-3.7.0';
-import { camLabel, scorePopup } from './banners.js?v=iv-3.7.0';
+import { sfx } from './audio.js?v=iv-3.7.1';
+import { floorY } from './map.js?v=iv-3.7.1';
+import { camLabel, scorePopup } from './banners.js?v=iv-3.7.1';
 
 export const DRONE = {
   radius: 0.11,
@@ -231,8 +231,13 @@ export class DroneSys {
     const cam = this.game.gfx.camera;
     cam.fov = 68; cam.near = 0.05; cam.far = 90; cam.updateProjectionMatrix();
     const yaw = c.yaw + this.camYawOff;
-    const pitch = -0.18 + this.camPitchOff;
-    cam.position.set(c.x, c.y, c.z);
+    const pitch = (c.pitch ?? -0.18) + this.camPitchOff;
+    const back = 0.16;
+    cam.position.set(
+      c.x - Math.sin(yaw) * back,
+      c.y,
+      c.z - Math.cos(yaw) * back,
+    );
     cam.lookAt(
       c.x + Math.sin(yaw) * Math.cos(pitch) * 2,
       c.y + Math.sin(pitch) * 2,
@@ -460,6 +465,7 @@ export class DroneSys {
     touch?.classList.toggle('feed-on', !!feed);
     document.body.classList.toggle('cam-feed', !!this.camsOn);
     document.body.classList.toggle('drone-feed', !!this.active);
+    if (this.game.gfx) this.game.gfx.skipPost = !!this.active;
     const team = g.player?.team;
     document.getElementById('tb-drone')?.classList.toggle('hidden', feed || team !== 'attack');
     document.getElementById('tb-cams')?.classList.toggle('hidden', feed || team !== 'defend');

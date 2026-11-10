@@ -1,4 +1,4 @@
-import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.7.0';
+import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.7.1';
 
 /** Clockwise degrees from the device's natural portrait. */
 export function screenOrientationAngle() {
@@ -91,8 +91,9 @@ const DEFAULT_LAYOUT = {
     'tb-score': { l: 58, t: 8, w: 44, h: 44 },
     'tb-sprint': { l: 46, b: 148, w: 56, h: 40 },
     'tb-hop': { r: 16, b: 66, w: 72, h: 72, hide: true },
-    'tb-switch': { r: 100, b: 70, w: 56, h: 48, hide: true },
-    'tb-feed-exit': { l: 22, t: 52, w: 56, h: 48, hide: true },
+    'tb-scan': { r: 16, b: 152, w: 92, h: 92, hide: true },
+    'tb-switch': { r: 100, b: 74, w: 72, h: 48, hide: true },
+    'tb-feed-exit': { l: 10, t: 60, w: 64, h: 44, hide: true },
   },
   claw: {
     'stick-base': { l: 22, b: 18 },
@@ -117,8 +118,9 @@ const DEFAULT_LAYOUT = {
     'tb-score': { l: 58, t: 8, w: 44, h: 44 },
     'tb-sprint': { l: 46, b: 148, w: 56, h: 40 },
     'tb-hop': { r: 16, b: 66, w: 72, h: 72, hide: true },
-    'tb-switch': { r: 100, b: 70, w: 56, h: 48, hide: true },
-    'tb-feed-exit': { l: 22, t: 52, w: 56, h: 48, hide: true },
+    'tb-scan': { r: 16, b: 152, w: 92, h: 92, hide: true },
+    'tb-switch': { r: 100, b: 74, w: 72, h: 48, hide: true },
+    'tb-feed-exit': { l: 10, t: 60, w: 64, h: 44, hide: true },
   },
 };
 

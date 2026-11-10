@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.7.0';
-import { getOp, listSide } from './operators.js?v=iv-3.7.0';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.7.0';
-import { isHostile } from './combat.js?v=iv-3.7.0';
-import { SPEED } from './config.js?v=iv-3.7.0';
-import { difficultyParams } from './difficulty.js?v=iv-3.7.0';
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.7.1';
+import { getOp, listSide } from './operators.js?v=iv-3.7.1';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.7.1';
+import { isHostile } from './combat.js?v=iv-3.7.1';
+import { SPEED } from './config.js?v=iv-3.7.1';
+import { difficultyParams } from './difficulty.js?v=iv-3.7.1';
 
 export function spawnBots(game) {
   const bots = [];

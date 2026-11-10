@@ -11,8 +11,8 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildHuman } from './characters.js?v=iv-3.7.0';
-import { HUMAN, SPEED } from './config.js?v=iv-3.7.0';
+import { buildHuman } from './characters.js?v=iv-3.7.1';
+import { HUMAN, SPEED } from './config.js?v=iv-3.7.1';
 
 export const PATHS = {
   reference: 'assets/models/reference/humanoid.glb',

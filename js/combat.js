@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-3.7.0';
-import { sfx } from './audio.js?v=iv-3.7.0';
+import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-3.7.1';
+import { sfx } from './audio.js?v=iv-3.7.1';
 
 export function isHostile(game, t) {
   if (!t) return false;

@@ -184,14 +184,16 @@ export const SPAWNS = {
 };
 
 export const CAMS = [
-  { id: 'cam-street', name: 'Street Front', x: 0.2, y: 2.7, z: -9.15, yaw: 0, floor: '1' },
-  { id: 'cam-east', name: 'East Alley', x: 11.15, y: 2.7, z: 2, yaw: -Math.PI / 2, floor: '1' },
-  { id: 'cam-dock', name: 'Loading Dock', x: -7, y: 2.7, z: 11.15, yaw: Math.PI, floor: '1' },
-  { id: 'cam-court', name: 'West Court', x: -11.15, y: 2.7, z: 2, yaw: Math.PI / 2, floor: '1' },
-  { id: 'cam-press', name: 'Press Corner', x: -10.4, y: 2.6, z: 5.6, yaw: -2.4, floor: '1' },
-  { id: 'cam-stair', name: 'Stair Hall', x: 0.6, y: 2.6, z: 10.4, yaw: 3.5, floor: '1' },
-  { id: 'cam-vault', name: 'Ink Vault', x: 10.3, y: -0.6, z: 4.3, yaw: -2.2, floor: 'B' },
-  { id: 'cam-upper', name: 'Upper Hall', x: 0.5, y: 5.7, z: 10.3, yaw: 3.4, floor: '2' },
+  // Exterior: 3/4 stand-off of each entrance, looking at the door and approach.
+  { id: 'cam-street', name: 'Street Front', x: 4.0, y: 2.35, z: -14.2, yaw: Math.atan2(-3.8, 5.2), pitch: -0.22, floor: '1' },
+  { id: 'cam-east', name: 'East Alley', x: 15.0, y: 2.35, z: 4.6, yaw: Math.atan2(-4.0, -2.6), pitch: -0.22, floor: '1' },
+  { id: 'cam-dock', name: 'Loading Dock', x: -4.2, y: 2.35, z: 15.0, yaw: Math.atan2(-2.8, -4.0), pitch: -0.22, floor: '1' },
+  { id: 'cam-court', name: 'West Court', x: -15.0, y: 2.35, z: 4.6, yaw: Math.atan2(4.0, -2.6), pitch: -0.22, floor: '1' },
+  // Interior: corner mounts looking across the room, clear of stair soffits.
+  { id: 'cam-press', name: 'Press Corner', x: -10.2, y: 2.55, z: 5.2, yaw: Math.atan2(5.3, -3.2), pitch: -0.16, floor: '1' },
+  { id: 'cam-stair', name: 'Stair Hall', x: -2.7, y: 2.55, z: 8.6, yaw: Math.PI / 2, pitch: -0.16, floor: '1' },
+  { id: 'cam-vault', name: 'Ink Vault', x: 10.2, y: -0.65, z: 4.35, yaw: Math.PI, pitch: -0.16, floor: 'B' },
+  { id: 'cam-upper', name: 'Upper Hall', x: -2.7, y: 5.75, z: 8.6, yaw: Math.PI / 2, pitch: -0.16, floor: '2' },
 ];
 
 
