@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-3.7.1';
-import { sfx } from './audio.js?v=iv-3.7.1';
+import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-4.1.0';
+import { sfx, gunfireAt } from './audio.js?v=iv-4.1.0';
+import { bloomSpread, nextRecoil, computeDamage, hitPartFromOffset, markAimAssistNear } from './match/combat.js?v=iv-4.1.0';
+import { hasLOS } from './match/vision.js?v=iv-4.1.0';
 
 export function isHostile(game, t) {
   if (!t) return false;
@@ -37,18 +39,8 @@ export function aimAssistTarget(game) {
 }
 
 export function applyAimAssist(game, dt) {
-  const t = aimAssistTarget(game);
-  if (!t) return;
-  // weak pull — Low is slight
-  const p = game.player;
-  const cam = game.gfx.camera;
-  const origin = cam.position;
-  const want = new THREE.Vector3(t.bot.pos.x, t.bot.pos.y + 1.4, t.bot.pos.z).sub(origin);
-  const yaw = Math.atan2(want.x, want.z);
-  const pitch = Math.asin(clamp(want.y / want.length(), -1, 1));
-  const k = t.str * 6 * dt;
-  p.yaw += (yaw - p.yaw) * k * 0.15;
-  p.pitch += (pitch - p.pitch) * k * 0.12;
+  // v4: touch look slowdown only (see aimAssistScale). No magnetic pull.
+  markAimAssistNear(game, aimAssistTarget(game));
 }
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
@@ -80,6 +72,7 @@ export function cancelToReady(game) {
 
 export function fireWeapon(game) {
   const p = game.player, wpn = game.weapon;
+  if (!p?.alive || p.downed) return;
   if (p.sprint) {
     p.sprint = false; p.sprintLock = false;
     p._sprintOutFireUntil = (game.time || 0) + (SPRINT_OUT_FIRE || 0.18);
@@ -91,26 +84,32 @@ export function fireWeapon(game) {
   if (now < (wpn.nextShot || 0)) return;
   wpn.nextShot = now + interval;
   wpn.clip--;
+  wpn.heat = Math.min(1.8, (wpn.heat || 0) + 0.22);
   game.vmKick = (game.vmKick || 0) + 1;
-  sfx.fire(wpn.class === 'shotgun');
+  p._lastShot = now;
+  const listener = game.camera?.position || p.pos;
+  gunfireAt(0, false, wpn.class === 'shotgun');
   const pellets = wpn.pellets || 1;
-  const ads = p.ads;
-  const spread = (lerp(wpn.spread, wpn.adsSpread, ads) * (p.stance >= 1.8 ? 0.6 : p.stance >= 0.8 ? 0.8 : 1)) * 0.01745;
+  const spread = bloomSpread(wpn, p.ads || 0, p.stance || 0, wpn.heat);
   const cam = game.gfx.camera;
   const origin = cam.position.clone();
   const base = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
-  // recoil
-  p.pitch += (wpn.recoil?.[0] || 0.2) * 0.015;
-  p.yaw += ((Math.random() * 2 - 1) * (wpn.recoil?.[1] || 0.08)) * 0.02;
+  const rec = nextRecoil(wpn);
+  p.pitch += rec.up;
+  p.yaw += rec.right;
   game._shotgunSplashDone = false;
+  let hitKind = null;
   for (let i = 0; i < pellets; i++) {
     const dir = base.clone();
     dir.x += (Math.random() * 2 - 1) * spread;
     dir.y += (Math.random() * 2 - 1) * spread;
     dir.z += (Math.random() * 2 - 1) * spread;
     dir.normalize();
-    traceShot(game, origin, dir, wpn, p);
+    const kind = traceShot(game, origin, dir, wpn, p);
+    if (kind === 'head') hitKind = 'head';
+    else if (kind === 'body' && hitKind !== 'head') hitKind = 'body';
   }
+  if (hitKind) game.showHitMarker?.(hitKind);
   game.updateAmmo?.();
 }
 
@@ -118,14 +117,14 @@ function lerp(a, b, t) { return a + (b - a) * t; }
 
 export function traceShot(game, origin, dir, wpn, who) {
   // charges first
-  const ch = game.gadgets.hitCharges(origin, dir, 80);
-  if (ch) { game.gadgets.shootCharge(ch, wpn.dmg || 20); return; }
+  const chg = game.gadgets.hitCharges(origin, dir, 80);
+  if (chg) { game.gadgets.shootCharge(chg, wpn.dmg || 20); return 'world'; }
   // scout drones (shootable in prep and action)
   const drones = game.droneSys?.drones || [];
   for (const d of drones) {
     if (!d.alive || !d.pos) continue;
     const t = _closest(origin, dir, new THREE.Vector3(d.pos.x, d.pos.y + 0.06, d.pos.z), 80, 0.16);
-    if (t != null) { game.droneSys.hit(d, wpn.dmg || 20, who); return; }
+    if (t != null) { game.droneSys.hit(d, wpn.dmg || 20, who); return 'world'; }
   }
   // cams
   for (const cam of game.world.secCams) {
@@ -138,53 +137,91 @@ export function traceShot(game, origin, dir, wpn, who) {
         cam.led.material.emissiveIntensity = 0;
       }
       game.toast?.('Camera destroyed');
-      return;
+      return 'world';
     }
   }
-  // gadgets traps etc skipped
   // Operators cannot eliminate each other during prep.
-  if (game.round?.phase === 'prep') return;
-  // pawns
-  let best = null, bt = 80;
-  const pawns = [game.player, ...game.bots].filter(b => b !== who && b.alive);
+  const canHurt = game.round?.phase !== 'prep';
+  const ray = new THREE.Raycaster(origin, dir, 0.05, 80);
+  const hits = ray.intersectObjects([game.world.staticGroup, game.world.dynGroup], true)
+    .sort((a, b) => a.distance - b.distance);
+  const winHit = game.world.hitWindowOnRay?.(origin, dir, hits[0]?.distance ?? 80);
+
+  const pawns = canHurt ? [game.player, ...game.bots].filter(b => b !== who && (b.alive || b.downed)) : [];
+  const pawnHits = [];
   for (const b of pawns) {
     const head = new THREE.Vector3(b.pos.x, b.pos.y + 1.65, b.pos.z);
     const torso = new THREE.Vector3(b.pos.x, b.pos.y + 1.15, b.pos.z);
-    const th = _closest(origin, dir, head, bt, 0.16);
-    if (th != null) { best = { b, head: true, t: th }; bt = th; continue; }
-    const tt = _closest(origin, dir, torso, bt, 0.28);
-    if (tt != null) { best = { b, head: false, t: tt }; bt = tt; }
+    const legs = new THREE.Vector3(b.pos.x, b.pos.y + 0.5, b.pos.z);
+    const th = _closest(origin, dir, head, 80, 0.16);
+    const tt = _closest(origin, dir, torso, 80, 0.28);
+    const tl = _closest(origin, dir, legs, 80, 0.22);
+    let t = null, part = 'torso';
+    if (th != null) { t = th; part = 'head'; }
+    if (tt != null && (t == null || tt < t)) { t = tt; part = hitPartFromOffset(origin, dir, b, tt); }
+    if (tl != null && (t == null || tl < t)) { t = tl; part = 'leg'; }
+    if (t != null) pawnHits.push({ b, t, part });
   }
-  if (best) {
-    const dmg = (wpn.dmg || 30) * (best.head ? (wpn.head || 2.3) : 1);
-    game.hurt(best.b, dmg, origin, best.head, { who });
-    sfx[best.head ? 'head' : 'hit']();
-    return;
-  }
-  // world
-  const ray = new THREE.Raycaster(origin, dir, 0.05, 80);
-  const hits = ray.intersectObjects([game.world.staticGroup, game.world.dynGroup], true);
-  const winHit = game.world.hitWindowOnRay?.(origin, dir, hits[0]?.distance ?? 80);
-  if (winHit && (!hits[0] || game.world.rayHitsWindow(origin, dir, hits[0].distance, winHit) != null)) {
-    game.world.damageWindow(winHit, wpn.dmg || 30);
-    return;
-  }
-  if (hits[0]) {
-    const o = hits[0].object;
+  pawnHits.sort((a, b) => a.t - b.t);
+
+  let power = 1;
+  let maxT = 80;
+  let iP = 0, iW = 0;
+  let lastKind = null;
+  const consumeWorld = (h, tcut) => {
+    if (!h || h.distance > tcut + 0.02) return 'skip';
+    const o = h.object;
+    if (o.userData.window) {
+      game.world.damageWindow(o.userData.window, (wpn.dmg || 30) * power);
+      return 'glass';
+    }
+    if (o.userData.hatch?.cell) {
+      for (const ch of o.userData.hatch.cell.chunks) game.world.damageChunk(ch, (wpn.dmg || 30) * power);
+      return 'soft';
+    }
     if (o.userData.chunk) {
       const ch = o.userData.chunk;
-      game.world.damageChunk(ch, wpn.dmg || 30);
+      const soft = !ch.reinforced && (ch.hp || 0) < 200;
+      game.world.damageChunk(ch, (wpn.dmg || 30) * power);
       if ((wpn.class === 'shotgun' || (wpn.pellets || 1) > 3) && !game._shotgunSplashDone) {
         game._shotgunSplashDone = true;
-        game.world.damageNeighbors(ch, (wpn.dmg || 18) * 2.5);
+        game.world.damageNeighbors(ch, (wpn.dmg || 18) * 2.5 * power);
       }
+      game.spawnDecal?.(h.point, h.face?.normal);
+      if (ch.reinforced || !soft) return 'hard';
+      return 'soft';
     }
-    if (o.userData.window) game.world.damageWindow(o.userData.window, wpn.dmg || 30);
-    if (o.userData.hatch?.cell) {
-      for (const ch of o.userData.hatch.cell.chunks) game.world.damageChunk(ch, wpn.dmg || 30);
-    }
-    game.spawnDecal?.(hits[0].point, hits[0].face?.normal);
+    game.spawnDecal?.(h.point, h.face?.normal);
+    return 'hard';
+  };
+
+  if (winHit && (!hits[0] || game.world.rayHitsWindow(origin, dir, hits[0].distance, winHit) != null)) {
+    game.world.damageWindow(winHit, wpn.dmg || 30);
+    // Glass does not stop the round.
   }
+
+  while (power >= 0.28) {
+    const pawn = pawnHits[iP];
+    const world = hits[iW];
+    const tPawn = pawn ? pawn.t : Infinity;
+    const tWorld = world ? world.distance : Infinity;
+    if (tPawn === Infinity && tWorld === Infinity) break;
+    if (tPawn <= tWorld) {
+      const dmg = computeDamage(wpn, pawn.part, pawn.b.armor) * power;
+      if (who && who !== pawn.b && !pawn.b._assistBy && pawn.b !== who) pawn.b._assistBy = who;
+      game.hurt(pawn.b, dmg, origin, pawn.part === 'head', { who, part: pawn.part });
+      sfx[pawn.part === 'head' ? 'head' : 'hit']();
+      lastKind = pawn.part === 'head' ? 'head' : 'body';
+      // A body does not let the bullet keep going.
+      break;
+    }
+    const kind = consumeWorld(world, maxT);
+    iW++;
+    if (kind === 'hard') break;
+    if (kind === 'soft') { power *= 0.6; continue; }
+    // glass / skip: keep going
+  }
+  return lastKind;
 }
 
 export function melee(game) {

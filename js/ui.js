@@ -1,10 +1,10 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-3.7.1';
-import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-3.7.1';
-import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-3.7.1';
-import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-3.7.1';
-import { saveSettings, DEFAULTS } from './settings.js?v=iv-3.7.1';
-import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-3.7.1';
-import { QUALITY, TITLE, BUILD } from './config.js?v=iv-3.7.1';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-4.1.0';
+import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-4.1.0';
+import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-4.1.0';
+import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-4.1.0';
+import { saveSettings, DEFAULTS } from './settings.js?v=iv-4.1.0';
+import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-4.1.0';
+import { QUALITY, TITLE, BUILD } from './config.js?v=iv-4.1.0';
 
 export class UI {
   constructor(game) {
@@ -63,7 +63,7 @@ export class UI {
     if (!b) return;
     const a = b.dataset.action, arg = b.dataset.arg, k = b.dataset.k, v = b.dataset.v;
     const g = this.game;
-    if (a === 'boot') return g.boot();
+    if (a === 'boot') return (window.__FE?.boot ? window.__FE.boot() : g.boot());
     if (a === 'goto') {
       if (arg === 'hudedit') { this.show('hudedit'); g.input.startHudEdit(); return; }
       this.show(arg); return;
@@ -280,6 +280,11 @@ export class UI {
     const body = document.getElementById('settings-body');
     if (!body) return;
     body.innerHTML = `
+      <div class="settings-diff-pin">
+        <div class="slotlbl">BOT DIFFICULTY</div>
+        ${rowSel('difficulty', 'Difficulty', s.difficulty, DIFFICULTY_IDS)}
+      </div>
+      <div class="settings-rest">
       <div class="slotlbl">GRAPHICS</div>
       ${rowSel('quality', 'Quality', s.quality, ['auto','low','med','high'])}
       <div class="slotlbl">AIM</div>
@@ -291,8 +296,6 @@ export class UI {
       ${rowRange('gyroYaw', 'Gyro yaw', s.gyroYaw, 0.2, 2, 0.05)}
       ${rowRange('gyroPitch', 'Gyro pitch', s.gyroPitch, 0.2, 2, 0.05)}
       ${rowChk('invertY', 'Invert Y', s.invertY)}
-      <div class="slotlbl">BOT DIFFICULTY</div>
-      ${rowSel('difficulty', 'Difficulty', s.difficulty, DIFFICULTY_IDS)}
       <div class="slotlbl">CONTROLS</div>
       ${rowSel('leanMode', 'Lean', s.leanMode, ['toggle','hold'])}
       ${rowSel('adsMode', 'ADS (touch default Toggle; controller default Hold)', s.adsModeUser ? s.adsMode : 'toggle', ['toggle','hold'])}
@@ -310,6 +313,7 @@ export class UI {
       <div class="ch-preview" id="ch-preview"><div id="crosshair-prev" class="ch-cross"></div></div>
       <div class="slotlbl">ABOUT</div>
       <p class="fine" style="padding:8px 0 4px">${TITLE} · build ${BUILD}. An original 5v5 tactical attack and defense game. See Credits on the main menu.</p>
+      </div>
     `;
     body.onchange = ev => this._setFrom(ev.target);
     body.oninput = ev => this._setFrom(ev.target);

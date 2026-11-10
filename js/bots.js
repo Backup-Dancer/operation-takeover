@@ -1,10 +1,12 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-3.7.1';
-import { getOp, listSide } from './operators.js?v=iv-3.7.1';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-3.7.1';
-import { isHostile } from './combat.js?v=iv-3.7.1';
-import { SPEED } from './config.js?v=iv-3.7.1';
-import { difficultyParams } from './difficulty.js?v=iv-3.7.1';
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.0';
+import { getOp, listSide } from './operators.js?v=iv-4.1.0';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.0';
+import { isHostile } from './combat.js?v=iv-4.1.0';
+import { SPEED } from './config.js?v=iv-4.1.0';
+import { difficultyParams } from './difficulty.js?v=iv-4.1.0';
+import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt } from './match/vision.js?v=iv-4.1.0';
+import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.0';
 
 export function spawnBots(game) {
   const bots = [];
@@ -73,17 +75,20 @@ function assignRole(side, op, i) {
 }
 
 function pickSpawn(game, side, i) {
+  const rng = game._rng || Math.random;
   if (side === 'attack') {
-    const list = game.world.spawns.attack;
-    const s = list[i % list.length];
-    return { x: s.x + (i % 3) * 0.7, y: 0, z: s.z + ((i / 3) | 0) * 0.5, yaw: s.yaw };
+    const s = pickSafeAttackSpawn(game, i, rng);
+    return { x: s.x + (i % 3) * 0.55, y: s.y || 0, z: s.z + ((i / 3) | 0) * 0.4, yaw: s.yaw };
   }
   const pair = game.round.pair;
   const sites = pair.sites.map(id => game.world.sites[id]);
   const s = sites[i % sites.length];
   const pl = s.plant;
   const y = game.world.groundAt(pl.x, pl.z, 10);
-  return { x: pl.x + (i % 2 ? 1.2 : -1.2), y, z: pl.z + 0.8, yaw: 0 };
+  // Keep defenders inside the site rooms, not at exterior windows.
+  const ox = (i % 2 ? 1.1 : -1.1);
+  const oz = 0.6 * ((i % 3) - 1);
+  return { x: pl.x + ox, y, z: pl.z + oz, yaw: 0 };
 }
 
 export function updateBots(game, dt) {
@@ -98,6 +103,7 @@ export function updateBots(game, dt) {
     b.t += dt;
     think(game, b, dt, dcfg);
     move(game, b, dt);
+    tryObjective(game, b, dt);
     shoot(game, b, dt, dcfg);
     b.mesh.position.set(b.pos.x, b.pos.y, b.pos.z);
     b.mesh.rotation.y = b.yaw;
@@ -156,9 +162,23 @@ function think(game, b, dt, dcfg) {
     return;
   }
 
+  const hold = holdInteriorFor(game);
+  const actionAge = (game.time || 0) - (game.round?.actionAt || 0);
+  const stayIn = b.team === 'defend' && hold > 0 && actionAge < hold;
+  if (stayIn && !inBuilding(game.world, b.pos) && site) {
+    goTo(game, b, site.plant.x, site.y ?? 0, site.plant.z);
+    b.action = 'hold';
+    return;
+  }
+  if (stayIn && (best === 'chase' || best === 'peek' || best === 'rotate')) {
+    // No spawn peeks: hold the site, don't walk to an exterior window.
+    best = 'hold';
+    b.action = 'hold';
+  }
+
   if (best === 'plant' && site) goTo(game, b, site.plant.x, site.y ?? 0, site.plant.z);
   else if (best === 'defuse' && game.round.plantPos) goTo(game, b, game.round.plantPos.x, game.round.plantPos.y, game.round.plantPos.z);
-  else if (best === 'chase' && enemy) goTo(game, b, enemy.pos.x, enemy.pos.y, enemy.pos.z);
+  else if (best === 'chase' && enemy && !(stayIn && !inBuilding(game.world, enemy.pos))) goTo(game, b, enemy.pos.x, enemy.pos.y, enemy.pos.z);
   else if (best === 'breach') {
     const ch = game.world.chunks.find(c => !c.destroyed && !c.reinforced && Math.hypot(c.x - b.pos.x, c.z - b.pos.z) < 16) || game.world.chunks.find(c => !c.destroyed);
     if (ch) goTo(game, b, ch.x, ch.y, ch.z);
@@ -207,14 +227,26 @@ function move(game, b, dt) {
   const gnd = game.world.groundAt(b.pos.x, b.pos.z, b.pos.y + 0.8);
   b.pos.y = gnd;
   game.world.resolve(b.pos, 0.3, 1.7);
+  const listener = game.player?.pos;
+  if (listener) {
+    const d = Math.hypot(b.pos.x - listener.x, b.pos.z - listener.z);
+    if (d < 16) {
+      b._stepAcc = (b._stepAcc || 0) + dt * 1.7;
+      if (b._stepAcc >= 1) {
+        b._stepAcc = 0;
+        footstep(surfaceAt(game.world, b.pos), Math.max(0.015, 0.07 / (1 + d * 0.35)));
+      }
+    }
+  }
 }
 
 function shoot(game, b, dt, dcfg) {
+  if (b.downed) { b.aimT = 0; return; }
   // Defenders (and anyone who can see one) shoot scouts, including in prep.
   const drone = visibleDrone(game, b, dcfg);
   const enemy = game.round?.phase === 'prep' ? null : visibleEnemy(game, b, dcfg);
   const target = drone || enemy;
-  if (!target) { b.aimT = Math.max(0, b.aimT - dt * 0.5); return; }
+  if (!target) { b.aimT = Math.max(0, b.aimT - dt * 0.5); b._sawAt = 0; return; }
   const tp = target.pos;
   const dx = tp.x - b.pos.x, dz = tp.z - b.pos.z;
   const want = Math.atan2(dx, dz);
@@ -222,19 +254,36 @@ function shoot(game, b, dt, dcfg) {
   const track = Math.min(1, (dcfg.track || 0.6) * 8 * dt);
   b.yaw += turn * track;
   b.aimT += dt;
-  if (b.aimT < dcfg.react) return;
+  // Reaction delay starts from first sight, not from spawn.
+  if (!b._sawAt) b._sawAt = game.time;
+  if ((game.time - b._sawAt) < dcfg.react) return;
+  // Don't spawn-peek: defenders inside the hold window won't fire at targets still in a spawn yard.
+  const hold = holdInteriorFor(game);
+  const actionAge = (game.time || 0) - (game.round?.actionAt || 0);
+  if (b.team === 'defend' && target.team === 'attack' && !inBuilding(game.world, target.pos)) {
+    if (hold > 0 && actionAge < hold) return;
+    // No spawn peeking on any difficulty for the first few seconds.
+    if (actionAge < 4 && inSpawnYard(game, target)) return;
+  }
   const now = game.time;
   const interval = 60 / ((b.weapon?.rpm || 600) * 0.7);
   if (now - b.lastShot < interval) return;
   b.lastShot = now;
   if (!b.weapon || b.weapon.clip <= 0) { if (b.weapon) b.weapon.clip = b.weapon.mag; return; }
   b.weapon.clip--;
-  const aimY = drone ? (tp.y + 0.06) : (tp.y + 1.4);
+  const first = !b._hasFired;
+  b._hasFired = true;
+  const err = (first ? (dcfg.firstSpread || dcfg.acc) : dcfg.acc) + (dcfg.trackErr || 0) * 0.5;
+  const aimY = drone ? (tp.y + 0.06) : (tp.y + (target.downed ? 0.4 : 1.4));
   const origin = new THREE.Vector3(b.pos.x, b.pos.y + 1.45, b.pos.z);
   const dir = new THREE.Vector3(tp.x - origin.x, aimY - origin.y, tp.z - origin.z).normalize();
-  dir.x += (Math.random() * 2 - 1) * dcfg.acc;
-  dir.y += (Math.random() * 2 - 1) * dcfg.acc;
+  dir.x += (Math.random() * 2 - 1) * err;
+  dir.y += (Math.random() * 2 - 1) * err;
   dir.normalize();
+  const listener = game.camera?.position || game.player?.pos;
+  const dist = listener ? Math.hypot(origin.x - listener.x, origin.z - listener.z) : 8;
+  const occ = listener ? occludedBetween(game.world, origin.x, origin.y, origin.z, listener.x, listener.y || 1.5, listener.z) : false;
+  gunfireAt(dist, occ, b.weapon?.class === 'shotgun');
   const { traceShot } = game._combat;
   traceShot(game, origin, dir, b.weapon, b);
 }
@@ -273,26 +322,17 @@ function closestEnemy(game, b) {
   return best;
 }
 function visibleEnemy(game, b, dcfg) {
-  const e = closestEnemy(game, b);
-  if (!e) return null;
-  const range = (dcfg && dcfg.spot) || 28;
-  const d = dist(b, e);
-  if (d > range) return null;
-  const steps = 6;
-  let blocked = false;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const x = b.pos.x + (e.pos.x - b.pos.x) * t;
-    const z = b.pos.z + (e.pos.z - b.pos.z) * t;
-    const y = b.pos.y + 1.4;
-    if (game.world.pointInSolid(x, y, z, 0.05, 0.1)) { blocked = true; break; }
+  let best = null, bd = 1e9;
+  const list = [game.player, ...game.bots].filter(o => (o.alive || o.downed) && o.team !== b.team);
+  for (const o of list) {
+    if (!canSee(game, b, o, dcfg)) continue;
+    const d = dist(b, o);
+    if (d < bd) { bd = d; best = o; }
   }
-  if (!blocked) { e._lastSeen = game.time; return e; }
-  // Heard but not seen: close moving targets still draw a chase.
-  const moving = (e.vel && e.vel.length && e.vel.length() > 1.1) || e.sprint;
-  if (moving && d < ((dcfg && dcfg.hear) || 10)) {
+  if (best) { best._lastSeen = game.time; return best; }
+  const e = closestEnemy(game, b);
+  if (e && canHear(game, b, e, dcfg)) {
     e._lastHeard = game.time;
-    return null;
   }
   return null;
 }
@@ -313,4 +353,37 @@ function floorYSafe(game, w) {
   return game.world.groundAt(w.x, w.z, (w.y || 2) + 1);
 }
 
+
+function tryObjective(game, b, dt) {
+  const r = game.round;
+  if (!r || r.phase !== 'action' || b.downed || !b.alive) return;
+  const plantT = game.cfg?.plantTime || 7;
+  const defuseT = game.cfg?.defuseTime || 7;
+  if (b.team === 'attack' && !r.planted && (b.action === 'plant' || b.action === 'flex')) {
+    const site = nearestSite(game, b);
+    if (site && Math.hypot(b.pos.x - site.plant.x, b.pos.z - site.plant.z) < 1.5) {
+      r.plantProgress = (r.plantProgress || 0) + dt;
+      if (r.plantProgress >= plantT) {
+        r.planted = true;
+        r.plantPos = { x: site.plant.x, y: b.pos.y, z: site.plant.z, site: site.id };
+        r.t = game.cfg?.bombTime || 45;
+        r.plantProgress = 0;
+        try { game.emitMatch?.('phase', game._phasePayload?.()); } catch {}
+      }
+    }
+  }
+  if (b.team === 'defend' && r.planted && r.plantPos) {
+    if (Math.hypot(b.pos.x - r.plantPos.x, b.pos.z - r.plantPos.z) < 1.5) {
+      r.defuseProgress = (r.defuseProgress || 0) + dt;
+      if (r.defuseProgress >= defuseT) game._endRound('defend', 'defuse');
+    }
+  }
+}
+
 export function botDifficulty(id) { return difficultyParams(id); }
+
+function inSpawnYard(game, pawn) {
+  const list = game.world?.spawns?.attack || [];
+  if (!pawn?.pos) return false;
+  return list.some(s => Math.hypot(pawn.pos.x - s.x, pawn.pos.z - s.z) < 5.5);
+}

@@ -1,4 +1,4 @@
-import { BUILD, TITLE, SHORT_TITLE, MAP_NAME } from './version.js?v=iv-3.7.1';
+import { BUILD, TITLE, SHORT_TITLE, MAP_NAME } from './version.js?v=iv-4.1.0';
 
 export { BUILD, TITLE, SHORT_TITLE, MAP_NAME };
 
@@ -17,13 +17,13 @@ export const COL_R = 0.32;
 export const HUMAN = { height: 1.80, heads: 7.5, head: 0.24 };
 
 export const SPEED = {
-  walk: [3.05, 2.95, 2.80],   // speed 3,2,1 (armor inverse)
-  run: [4.60, 4.30, 3.90],
-  sprint: [5.05, 4.55, 4.05], // replaces 6.2 arcade peak
-  crouch: 1.70,
+  walk: [3.25, 3.15, 3.00],   // ~3.2 m/s for a speed-3 operator
+  run: [4.40, 4.15, 3.85],
+  sprint: [5.10, 4.75, 4.35], // ~5 m/s sprint
+  crouch: 1.80,
   prone: 0.85,
   rappel: 2.60,
-  ads: 2.35,                  // flat ADS move for every operator
+  ads: 2.20,                  // ADS slow for every operator
 };
 export const ADS_IN = { smg: 0.22, pdw: 0.22, ar: 0.28, shotgun: 0.34, dmr: 0.34, pistol: 0.22 };
 export const ADS_OUT = 0.16;

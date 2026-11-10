@@ -1,4 +1,6 @@
-import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-3.7.1';
+import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-4.1.0';
+import { stickFromDelta, moveFromPad, lookFromDrag, lookFromPad } from './match/axes.js?v=iv-4.1.0';
+import { aimAssistScale } from './match/combat.js?v=iv-4.1.0';
 
 /** Clockwise degrees from the device's natural portrait. */
 export function screenOrientationAngle() {
@@ -70,26 +72,26 @@ function capturePointer(el, e) {
 const DEFAULT_LAYOUT = {
   thumb: {
     'stick-base': { l: 22, b: 18 },
-    'tb-fire': { r: 16, b: 66, w: 84, h: 84 },
-    'tb-fire-l': { l: 158, b: 22, w: 64, h: 64, hide: true },
-    'tb-ads': { r: 112, b: 74, w: 60, h: 60 },
-    'tb-crouch': { r: 112, b: 148, w: 52, h: 48 },
-    'tb-prone': { r: 176, b: 148, w: 52, h: 48 },
-    'tb-leanl': { r: 112, b: 208, w: 48, h: 48 },
-    'tb-leanr': { r: 52, b: 208, w: 48, h: 48 },
-    'tb-reload': { r: 16, b: 164, w: 48, h: 48 },
-    'tb-gadget': { r: 240, b: 74, w: 48, h: 48 },
-    'tb-gadget2': { r: 240, b: 132, w: 48, h: 48 },
-    'tb-drone': { l: 22, t: 52, w: 48, h: 48 },
-    'tb-cams': { l: 22, t: 52, w: 48, h: 48 },
-    'tb-interact': { cx: 0.5, b: 24, w: 100, h: 48 },
-    'tb-swap': { l: 158, b: 108, w: 48, h: 48 },
-    'tb-ping': { l: 158, b: 164, w: 48, h: 48 },
-    'tb-rappel': { cx: 0.5, b: 80, w: 100, h: 48 },
+    'tb-fire': { r: 14, b: 66, w: 72, h: 72 },
+    'tb-fire-l': { l: 154, b: 22, w: 64, h: 64, hide: true },
+    'tb-ads': { r: 96, b: 78, w: 44, h: 44 },
+    'tb-crouch': { r: 96, b: 130, w: 44, h: 44 },
+    'tb-prone': { r: 96, b: 182, w: 44, h: 44 },
+    'tb-leanl': { r: 56, b: 148, w: 32, h: 32 },
+    'tb-leanr': { r: 18, b: 148, w: 32, h: 32 },
+    'tb-reload': { r: 28, b: 196, w: 44, h: 44 },
+    'tb-gadget': { r: 148, b: 182, w: 44, h: 44 },
+    'tb-gadget2': { r: 148, b: 130, w: 44, h: 44 },
+    'tb-drone': { r: 16, t: 8, w: 44, h: 44 },
+    'tb-cams': { r: 16, t: 8, w: 44, h: 44 },
+    'tb-interact': { cx: 0.5, b: 62, w: 108, h: 40 },
+    'tb-swap': { r: 16, t: 60, w: 40, h: 40 },
+    'tb-ping': { r: 148, b: 78, w: 44, h: 44 },
+    'tb-rappel': { cx: 0.5, b: 110, w: 108, h: 40 },
     'tb-detonate': { cx: 0.5, t: 70, w: 120, h: 48 },
     'tb-pause': { l: 10, t: 8, w: 44, h: 44 },
     'tb-score': { l: 58, t: 8, w: 44, h: 44 },
-    'tb-sprint': { l: 46, b: 148, w: 56, h: 40 },
+    'tb-sprint': { l: 54, b: 148, w: 56, h: 56 },
     'tb-hop': { r: 16, b: 66, w: 72, h: 72, hide: true },
     'tb-scan': { r: 16, b: 152, w: 92, h: 92, hide: true },
     'tb-switch': { r: 100, b: 74, w: 72, h: 48, hide: true },
@@ -97,26 +99,26 @@ const DEFAULT_LAYOUT = {
   },
   claw: {
     'stick-base': { l: 22, b: 18 },
-    'tb-fire': { r: 16, b: 66, w: 84, h: 84 },
-    'tb-fire-l': { l: 158, b: 22, w: 64, h: 64, hide: false },
-    'tb-ads': { r: 16, t: 56, w: 60, h: 60 },
-    'tb-crouch': { r: 112, b: 148, w: 52, h: 48 },
-    'tb-prone': { r: 176, b: 148, w: 52, h: 48 },
-    'tb-leanl': { r: 200, t: 120, w: 48, h: 48 },
-    'tb-leanr': { r: 140, t: 120, w: 48, h: 48 },
-    'tb-reload': { r: 16, b: 164, w: 48, h: 48 },
-    'tb-gadget': { r: 80, t: 56, w: 48, h: 48 },
-    'tb-gadget2': { r: 80, t: 112, w: 48, h: 48 },
-    'tb-drone': { l: 22, t: 52, w: 48, h: 48 },
-    'tb-cams': { l: 22, t: 52, w: 48, h: 48 },
-    'tb-interact': { cx: 0.5, b: 24, w: 100, h: 48 },
-    'tb-swap': { l: 158, b: 108, w: 48, h: 48 },
-    'tb-ping': { l: 158, b: 164, w: 48, h: 48 },
-    'tb-rappel': { cx: 0.5, b: 80, w: 100, h: 48 },
+    'tb-fire': { r: 14, b: 66, w: 72, h: 72 },
+    'tb-fire-l': { l: 154, b: 22, w: 64, h: 64, hide: false },
+    'tb-ads': { r: 96, b: 78, w: 44, h: 44 },
+    'tb-crouch': { r: 96, b: 130, w: 44, h: 44 },
+    'tb-prone': { r: 96, b: 182, w: 44, h: 44 },
+    'tb-leanl': { r: 56, b: 148, w: 32, h: 32 },
+    'tb-leanr': { r: 18, b: 148, w: 32, h: 32 },
+    'tb-reload': { r: 28, b: 196, w: 44, h: 44 },
+    'tb-gadget': { r: 148, b: 182, w: 44, h: 44 },
+    'tb-gadget2': { r: 148, b: 130, w: 44, h: 44 },
+    'tb-drone': { r: 16, t: 8, w: 44, h: 44 },
+    'tb-cams': { r: 16, t: 8, w: 44, h: 44 },
+    'tb-interact': { cx: 0.5, b: 62, w: 108, h: 40 },
+    'tb-swap': { r: 16, t: 60, w: 40, h: 40 },
+    'tb-ping': { r: 148, b: 78, w: 44, h: 44 },
+    'tb-rappel': { cx: 0.5, b: 110, w: 108, h: 40 },
     'tb-detonate': { cx: 0.5, t: 70, w: 120, h: 48 },
     'tb-pause': { l: 10, t: 8, w: 44, h: 44 },
     'tb-score': { l: 58, t: 8, w: 44, h: 44 },
-    'tb-sprint': { l: 46, b: 148, w: 56, h: 40 },
+    'tb-sprint': { l: 54, b: 148, w: 56, h: 56 },
     'tb-hop': { r: 16, b: 66, w: 72, h: 72, hide: true },
     'tb-scan': { r: 16, b: 152, w: 92, h: 92, hide: true },
     'tb-switch': { r: 100, b: 74, w: 72, h: 48, hide: true },
@@ -310,12 +312,15 @@ export class Input {
   _stickMove(e) {
     const dx = e.clientX - this.stick.cx, dy = e.clientY - this.stick.cy;
     const r = this.stick.r || 60;
-    const m = Math.hypot(dx, dy);
-    const nx = m > r ? dx * r / m : dx, ny = m > r ? dy * r / m : dy;
-    this.moveX = nx / r;
-    this.moveY = -ny / r;
+    const shaped = stickFromDelta(dx, dy, r);
+    this.moveX = shaped.x;
+    this.moveY = shaped.y;
     const knob = document.getElementById('stick-knob');
-    if (knob) knob.style.transform = `translate(${nx}px,${ny}px)`;
+    if (knob) {
+      const mag = Math.min(r, Math.hypot(dx, dy)) || 0;
+      const k = mag ? (mag / Math.hypot(dx, dy)) : 0;
+      knob.style.transform = `translate(${dx * k}px,${dy * k}px)`;
+    }
     // sprint lock past the top edge
     if (this.settings.sprintMode === 'lock') {
       if (this.moveY > 0.92 && Math.abs(this.moveX) < 0.5) this.game.player.sprintLock = true;
@@ -342,9 +347,15 @@ export class Input {
     if (!this.lookLast) return;
     const dx = e.clientX - this.lookLast.x, dy = e.clientY - this.lookLast.y;
     this.lookLast = { x: e.clientX, y: e.clientY };
-    const s = 0.006 * (this.settings.sensitivity || 1) * (this.game.player.ads > 0.5 ? (this.settings.adsSensitivity || 0.7) : 1);
-    this.lookX += dx * s;
-    this.lookY += dy * s * (this.settings.invertY ? -1 : 1);
+    const look = lookFromDrag(dx, dy, {
+      sensitivity: this.settings.sensitivity || 1,
+      adsSensitivity: this.settings.adsSensitivity || 0.7,
+      ads: this.game.player?.ads || 0,
+      invertY: this.settings.invertY === true,
+    });
+    const assist = aimAssistScale(this.game);
+    this.lookX += look.lookX * assist;
+    this.lookY += look.lookY * assist;
   }
 
   _bindKeys() {
@@ -412,9 +423,16 @@ export class Input {
     });
     addEventListener('mousemove', e => {
       if (document.pointerLockElement) {
-        const s = 0.0022 * (this.settings.sensitivity || 1) * (this.game.player.ads > 0.5 ? (this.settings.adsSensitivity || 0.7) : 1);
-        this.lookX += e.movementX * s;
-        this.lookY += e.movementY * s * (this.settings.invertY ? -1 : 1);
+        const look = lookFromDrag(e.movementX, e.movementY, {
+          scale: 0.0022,
+          sensitivity: this.settings.sensitivity || 1,
+          adsSensitivity: this.settings.adsSensitivity || 0.7,
+          ads: this.game.player?.ads || 0,
+          invertY: this.settings.invertY === true,
+        });
+        const assist = aimAssistScale(this.game);
+        this.lookX += look.lookX * assist;
+        this.lookY += look.lookY * assist;
       }
     });
   }
@@ -468,17 +486,17 @@ export class Input {
     const B = gp.buttons, A = gp.axes, M = this.padMap;
     const pressed = i => !!(B[i] && (B[i].pressed || B[i].value > 0.5));
     const val = i => B[i]?.value || 0;
-    const dead = 0.12;
-    const ax = Math.abs(A[0] || 0) > dead ? A[0] : 0;
-    const ay = Math.abs(A[1] || 0) > dead ? -A[1] : 0;
-    this.moveX = ax; this.moveY = ay;
-    this.game.player.sprint = pressed(M.sprint) || ay > 0.9;
-    const sens = 0.04 * (this.settings.sensitivity || 1);
-    const adsS = this.game.player.ads > 0.5 ? (this.settings.adsSensitivity || 0.7) : 1;
-    const rx = Math.abs(A[2] || 0) > dead ? A[2] : 0;
-    const ry = Math.abs(A[3] || 0) > dead ? A[3] : 0;
-    this.lookX += rx * sens * adsS;
-    this.lookY += ry * sens * adsS * (this.settings.invertY ? -1 : 1);
+    const mv = moveFromPad(A[0] || 0, A[1] || 0);
+    this.moveX = mv.x; this.moveY = mv.y;
+    if (this.game.player) this.game.player.sprint = pressed(M.sprint) || mv.y > 0.9;
+    const look = lookFromPad(A[2] || 0, A[3] || 0, {
+      sensitivity: this.settings.sensitivity || 1,
+      adsSensitivity: this.settings.adsSensitivity || 0.7,
+      ads: this.game.player?.ads || 0,
+      invertY: this.settings.invertY === true,
+    });
+    this.lookX += look.lookX;
+    this.lookY += look.lookY;
     this.fire = val(M.fire) > 0.2;
     const adsDown = val(M.ads) > 0.2;
     if (resolvedAdsMode(this.settings, this) === 'toggle') {

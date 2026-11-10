@@ -3,9 +3,11 @@
  *  can drop in without changing this controller. The main renderer
  *  camera is reused — no extra render targets. */
 import * as THREE from 'three';
-import { sfx } from './audio.js?v=iv-3.7.1';
-import { floorY } from './map.js?v=iv-3.7.1';
-import { camLabel, scorePopup } from './banners.js?v=iv-3.7.1';
+import { sfx } from './audio.js?v=iv-4.1.0';
+import { floorY } from './map.js?v=iv-4.1.0';
+import { camLabel, scorePopup } from './banners.js?v=iv-4.1.0';
+import { worldMove, applyLook } from './match/axes.js?v=iv-4.1.0';
+import { addScore } from './match/stats.js?v=iv-4.1.0';
 
 export const DRONE = {
   radius: 0.11,
@@ -292,7 +294,10 @@ export class DroneSys {
         const lab = document.getElementById('drone-label');
         if (lab) lab.textContent = 'SIGNAL LOST';
         this.game.toast('Scout destroyed');
-        if (who === this.game.player) scorePopup(this.game, 'scoutDown');
+        if (who === this.game.player) {
+        scorePopup(this.game, 'scoutDown');
+        addScore(who, 'drone', 25, this.game);
+      }
       }
     }
     return true;
@@ -327,8 +332,9 @@ export class DroneSys {
     }
     document.getElementById('drone-ov')?.classList.remove('is-dead');
     // Look (right stick / look zone already writes lookX/lookY).
-    d.yaw += inp.lookX;
-    d.pitch = Math.max(-1.05, Math.min(0.7, d.pitch - inp.lookY));
+    const turned = applyLook(d.yaw, d.pitch, inp.lookX, inp.lookY, -1.05, 0.7);
+    d.yaw = turned.yaw;
+    d.pitch = turned.pitch;
     inp.lookX = inp.lookY = 0;
     if (!d.parked) this._integrate(d, dt, inp.moveX, inp.moveY, true);
     if (g.jammedAt?.(d.pos)) { g.toast('Signal lost'); this.exitDrone(); return; }
@@ -343,8 +349,9 @@ export class DroneSys {
   _lookCams(dt) {
     const inp = this.game.input;
     const limY = 0.85, limP = 0.42;
-    this.camYawOff = Math.max(-limY, Math.min(limY, this.camYawOff + inp.lookX));
-    this.camPitchOff = Math.max(-limP, Math.min(limP, this.camPitchOff - inp.lookY));
+    const turned = applyLook(this.camYawOff, this.camPitchOff, inp.lookX, inp.lookY, -limP, limP);
+    this.camYawOff = Math.max(-limY, Math.min(limY, turned.yaw));
+    this.camPitchOff = turned.pitch;
     inp.lookX = inp.lookY = 0;
     this.applyCam();
   }
@@ -377,17 +384,16 @@ export class DroneSys {
     const g = this.game;
     const gnd = g.world.groundAt(d.pos.x, d.pos.z, d.pos.y + 1);
     const ceil = g.world.ceilingAt?.(d.pos.x, d.pos.z, d.pos.y) ?? 40;
-    _fwd.set(Math.sin(d.yaw), 0, Math.cos(d.yaw));
-    _right.set(Math.cos(d.yaw), 0, -Math.sin(d.yaw));
+    const wmv = worldMove(moveX, moveY, d.yaw);
     let vx = 0, vz = 0;
     if (d.grounded) {
-      vx = (_fwd.x * moveY + _right.x * moveX) * DRONE.speed;
-      vz = (_fwd.z * moveY + _right.z * moveX) * DRONE.speed;
+      vx = wmv.x * DRONE.speed;
+      vz = wmv.z * DRONE.speed;
       d.vy = 0;
       d.pos.y = gnd;
     } else {
-      vx = (d._hopX || 0) + (_fwd.x * moveY + _right.x * moveX) * DRONE.speed * 0.45;
-      vz = (d._hopZ || 0) + (_fwd.z * moveY + _right.z * moveX) * DRONE.speed * 0.45;
+      vx = (d._hopX || 0) + wmv.x * DRONE.speed * 0.45;
+      vz = (d._hopZ || 0) + wmv.z * DRONE.speed * 0.45;
       d.vy -= DRONE.gravity * dt;
       d.pos.y += d.vy * dt;
       if (d.pos.y <= gnd) { d.pos.y = gnd; d.vy = 0; d.grounded = true; d._hopX = 0; d._hopZ = 0; }

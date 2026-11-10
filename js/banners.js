@@ -146,19 +146,22 @@ export function updateCompass(yaw) {
 }
 
 export function updateSquad(game) {
-  const el = document.getElementById('hud-squad');
-  if (!el) return;
-  const pip = (o, i) => {
+  const pip = (o) => {
     const dead = o && o.alive === false;
     const you = o === game.player ? ' you' : '';
     return `<i class="pip ${o?.team || ''}${you}${dead ? ' dead' : ''}" title="${o?.opId || ''}"></i>`;
   };
   const atk = [game.player, ...(game.bots || [])].filter(o => o && o.team === 'attack').slice(0, 5);
   const def = [game.player, ...(game.bots || [])].filter(o => o && o.team === 'defend').slice(0, 5);
-  el.innerHTML = `<span class="atk">${atk.map(pip).join('')}</span><span class="def">${def.map(pip).join('')}</span>`;
+  const fill = (id, list) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = list.map(pip).join('');
+  };
+  fill('hud-squad-atk', atk);
+  fill('hud-squad-def', def);
 }
 
-export function setReinforceRing(frac) {
+export function setProgressRing(frac, label) {
   const el = document.getElementById('hud-ring');
   if (!el) return;
   if (frac == null || frac <= 0) { el.classList.add('hidden'); return; }
@@ -166,5 +169,9 @@ export function setReinforceRing(frac) {
   const pct = Math.max(0, Math.min(1, frac));
   el.style.setProperty('--p', String(pct));
   const n = el.querySelector('b');
-  if (n) n.textContent = Math.ceil((1 - pct) * 4) || 1;
+  if (n) n.textContent = label != null ? String(label) : `${(pct * 100) | 0}`;
+}
+export function setReinforceRing(frac) {
+  if (frac == null || frac <= 0) return setProgressRing(0);
+  setProgressRing(frac, String(Math.ceil((1 - frac) * 4) || 1));
 }

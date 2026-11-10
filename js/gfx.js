@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { QUALITY, BUDGET } from './config.js?v=iv-3.7.1';
+import { QUALITY, BUDGET } from './config.js?v=iv-4.1.0';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 
 const TEX_MAP = {
@@ -463,14 +463,14 @@ export class Gfx {
     this.vmCamera = new THREE.PerspectiveCamera(52, this.camera.aspect || 1, 0.02, 10);
     this.vmScene.environment = this.env || null;
     this.vmScene.environmentIntensity = 1.05;
-    const hemi = new THREE.HemisphereLight(0xfff1e2, 0x2a241c, 0.7);
-    const key = new THREE.DirectionalLight(0xfff6ea, 2.5);
+    const hemi = new THREE.HemisphereLight(0xfff1e2, 0x2a241c, 0.85);
+    const key = new THREE.DirectionalLight(0xfff6ea, 2.85);
     key.position.set(0.45, 0.9, 0.75);
     key.target.position.set(0, -0.02, -0.28);
-    const fill = new THREE.DirectionalLight(0x9bb4cc, 0.95);
-    fill.position.set(-0.65, 0.3, 0.5);
+    const fill = new THREE.DirectionalLight(0x9bb4cc, 1.25);
+    fill.position.set(-0.85, 0.35, 0.55);
     fill.target.position.set(0, 0, -0.25);
-    const rim = new THREE.DirectionalLight(0xffd8b0, 1.55);
+    const rim = new THREE.DirectionalLight(0xffd8b0, 1.7);
     rim.position.set(-0.2, 0.45, -0.85);
     rim.target.position.set(0, 0, -0.2);
     this.vmScene.add(hemi, key, key.target, fill, fill.target, rim, rim.target);

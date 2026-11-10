@@ -1,7 +1,11 @@
 import * as THREE from 'three';
-import { EYE, COL_H, COL_R, SPEED, ADS_IN, ADS_OUT, SPRINT_OUT_FIRE, SPRINT_OUT_ADS, CANCEL_READY } from './config.js?v=iv-3.7.1';
-import { clamp, damp, wrapPi, angDiff } from './math.js?v=iv-3.7.1';
-import { OPTIC_ZOOM } from './weapons.js?v=iv-3.7.1';
+import { EYE, COL_H, COL_R, SPEED, ADS_IN, ADS_OUT, SPRINT_OUT_FIRE, SPRINT_OUT_ADS, CANCEL_READY } from './config.js?v=iv-4.1.0';
+import { clamp, damp, wrapPi, angDiff } from './math.js?v=iv-4.1.0';
+import { worldMove, applyLook } from './match/axes.js?v=iv-4.1.0';
+import { recoverRecoil } from './match/combat.js?v=iv-4.1.0';
+import { surfaceAt } from './match/vision.js?v=iv-4.1.0';
+import { footstep } from './audio.js?v=iv-4.1.0';
+import { OPTIC_ZOOM } from './weapons.js?v=iv-4.1.0';
 
 export function createPlayer(game) {
   const p = {
@@ -23,6 +27,7 @@ export function createPlayer(game) {
 
 export function eyeHeight(p) {
   if (p.rappelling) return 0;
+  if (p.planting) return (EYE.crouch ?? 1.05) * 0.78;
   const s = p.stance;
   if (s >= 1.5) return EYE.prone;
   if (s >= 0.5) return lerp(EYE.stand, EYE.crouch, s);
@@ -145,13 +150,17 @@ export function updatePlayer(game, dt) {
   const mx = inp.moveX || 0, mz = inp.moveY || 0;
   const mag = Math.hypot(mx, mz);
   const nx = mag > 1 ? mx / mag : mx, nz = mag > 1 ? mz / mag : mz;
-  // Walk in the camera frame: stick up = camera horizontal forward
-  // (crosshair / local -Z), stick right = camera right. (iv-3.0.3)
+  // Walk in the camera frame: stick up = camera horizontal forward,
+  // stick right = camera right. Same basis as the drone and cams.
   const { fwd, right } = aimAxes(game, p.yaw);
-  const wx = fwd.x * nz + right.x * nx;
-  const wz = fwd.z * nz + right.z * nx;
-  p.vel.x = damp(p.vel.x, wx * spd, 12, dt);
-  p.vel.z = damp(p.vel.z, wz * spd, 12, dt);
+  const wmv = worldMove(nx, nz, fwd, right);
+  const accel = p.sprint ? 9 : (mag > 0.05 ? 13 : 16);
+  p.vel.x = damp(p.vel.x, wmv.x * spd, accel, dt);
+  p.vel.z = damp(p.vel.z, wmv.z * spd, accel, dt);
+
+  if (p.downed) {
+    p.vel.x *= 0.25; p.vel.z *= 0.25;
+  }
 
   p.pos.x += p.vel.x * dt;
   p.pos.z += p.vel.z * dt;
@@ -167,10 +176,26 @@ export function updatePlayer(game, dt) {
   p.pos.y += p.vy * dt;
   if (p.pos.y < gnd) p.pos.y = gnd;
 
-  // look
-  p.yaw = wrapPi(p.yaw + inp.lookX);
-  p.pitch = clamp(p.pitch - inp.lookY, -1.2, 1.2);
+  // look — shared applyLook (lookX right, lookY down)
+  const turned = applyLook(p.yaw, p.pitch, inp.lookX, inp.lookY);
+  p.yaw = wrapPi(turned.yaw);
+  p.pitch = turned.pitch;
   inp.lookX = 0; inp.lookY = 0;
+
+  recoverRecoil(game.weapon, dt);
+
+  // Footsteps by surface, local and quiet.
+  const stepSpd = Math.hypot(p.vel.x, p.vel.z);
+  if (p.onGround && stepSpd > 0.6 && !p.downed) {
+    p._stepAcc = (p._stepAcc || 0) + dt * (p.sprint ? 2.6 : p.stanceT >= 0.8 ? 1.2 : 1.8);
+    if (p._stepAcc >= 1) {
+      p._stepAcc = 0;
+      const vol = p.sprint ? 0.08 : p.stanceT >= 0.8 ? 0.03 : 0.05;
+      footstep(surfaceAt(w, p.pos), vol);
+    }
+  } else {
+    p._stepAcc = 0;
+  }
 
   p.eye = eyeHeight(p);
 
@@ -233,8 +258,9 @@ export function updateRappel(game, dt) {
     else rp.z = clamp(rp.z, f.z0 + 0.3, f.z1 - 0.3);
   }
   p.pos.set(rp.x, rp.y, rp.z);
-  p.yaw = wrapPi(p.yaw + inp.lookX);
-  p.pitch = clamp(p.pitch - inp.lookY, -1.1, 1.1);
+  const turned = applyLook(p.yaw, p.pitch, inp.lookX, inp.lookY, -1.1, 1.1);
+  p.yaw = wrapPi(turned.yaw);
+  p.pitch = turned.pitch;
   inp.lookX = 0; inp.lookY = 0;
   p.eye = 0;
 }
@@ -246,12 +272,17 @@ export function updateCamera(game, dt) {
   cam.fov = lerp(fovStand, fovAds, ads);
   cam.updateProjectionMatrix();
 
-  const eye = p.rappelling ? 0.15 : eyeHeight(p);
+  const eye = p.rappelling ? 0.15 : (p.downed ? 0.42 : eyeHeight(p));
   const leanOff = 0.38 * p.lean;
   const right = new THREE.Vector3(Math.cos(p.yaw), 0, -Math.sin(p.yaw));
   const fwd = new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
   const origin = new THREE.Vector3(p.pos.x, p.pos.y + eye, p.pos.z);
   origin.addScaledVector(right, leanOff);
+  const spd = Math.hypot(p.vel?.x || 0, p.vel?.z || 0);
+  const bobWant = (p.sprint ? 0.026 : 0.014) * (1 - ads * 0.75) * Math.min(1, spd / 3.2);
+  p._bob = (p._bob || 0) + dt * (p.sprint ? 13.5 : 9.2) * Math.min(1, spd / 2);
+  if (spd < 0.2) p._bob = 0;
+  origin.y += Math.sin(p._bob) * bobWant;
   cam.position.copy(origin);
   const look = origin.clone().add(new THREE.Vector3(
     Math.sin(p.yaw) * Math.cos(p.pitch),
@@ -311,12 +342,27 @@ const _adsAxis = new THREE.Vector3(1, 0, 0);
 const _adsPitch = new THREE.Quaternion();
 const _fwd = new THREE.Vector3();
 const _camFwd = new THREE.Vector3(0, 0, -1);
+const _muz = new THREE.Vector3();
+const _sightPos = new THREE.Vector3();
+const _up = new THREE.Vector3();
+const _alignQ = new THREE.Quaternion();
+const _twistQ = new THREE.Quaternion();
+const _upRef = new THREE.Vector3(0, 1, 0);
+
+const VM_FOV_HIP = 54;
+const VM_FOV_ADS = { iron: 46, red: 40, holo: 40, scope2: 30, scope4: 22 };
+
+function findMuzzle(vm) {
+  return vm.userData.sockets?.socket_muzzle
+    || vm.userData.weapon?.userData?.sockets?.socket_muzzle
+    || null;
+}
 
 function alignOpticToCamera(vm, distance = 0.11) {
-  // Put the lens (sight) on the viewmodel camera's centre ray, at the
-  // authored eye relief, with the sight −Z colinear with the camera −Z.
-  // No extra pitch: the receiver/stock already sit below the optic.
+  // Sight anchor on the camera centre ray at eye relief; barrel (sight →
+  // muzzle) colinear with camera −Z; twist so weapon +Y stays upright.
   const sight = vm.userData.sight || vm.userData.opticSocket || vm.userData.optic || vm.userData.reticle;
+  const muzzle = findMuzzle(vm);
   vm.position.set(0, 0, 0);
   vm.quaternion.identity();
   vm.updateMatrixWorld(true);
@@ -324,25 +370,41 @@ function alignOpticToCamera(vm, distance = 0.11) {
     vm.position.set(0, -0.02, -0.40);
     return;
   }
+  sight.getWorldPosition(_sightPos);
+  if (muzzle) {
+    muzzle.getWorldPosition(_muz);
+    _fwd.copy(_muz).sub(_sightPos);
+    if (_fwd.lengthSq() < 1e-8) _fwd.set(0, 0, -1);
+    else _fwd.normalize();
+  } else {
+    sight.getWorldQuaternion(_adsQ);
+    _fwd.set(0, 0, -1).applyQuaternion(_adsQ).normalize();
+  }
+  _alignQ.setFromUnitVectors(_fwd, _camFwd);
+  vm.quaternion.copy(_alignQ);
+  vm.updateMatrixWorld(true);
   sight.getWorldQuaternion(_adsQ);
-  _fwd.set(0, 0, -1).applyQuaternion(_adsQ).normalize();
-  _adsQ.setFromUnitVectors(_fwd, _camFwd);
-  vm.quaternion.copy(_adsQ);
+  _up.set(0, 1, 0).applyQuaternion(_adsQ);
+  _up.z = 0;
+  if (_up.lengthSq() > 1e-6) {
+    _up.normalize();
+    _twistQ.setFromUnitVectors(_up, _upRef);
+    vm.quaternion.premultiply(_twistQ);
+    vm.updateMatrixWorld(true);
+  }
+  sight.getWorldPosition(_sightPos);
+  vm.position.set(-_sightPos.x, -_sightPos.y, -distance - _sightPos.z);
   vm.updateMatrixWorld(true);
-  sight.getWorldPosition(_retWorld);
-  vm.position.set(-_retWorld.x, -_retWorld.y, -distance - _retWorld.z);
-  vm.updateMatrixWorld(true);
-  // Pitch around the LENS (not the rail) so the receiver/stock drop
-  // below the frame while the sight axis stays on the centre ray.
-  const drop = vm.userData.adsPitch ?? -0.4;
+  const drop = vm.userData.adsPitch ?? 0;
   if (drop) {
     _adsPitch.setFromAxisAngle(_adsAxis, drop);
     vm.quaternion.premultiply(_adsPitch);
     vm.updateMatrixWorld(true);
-    sight.getWorldPosition(_retWorld);
-    vm.position.x -= _retWorld.x;
-    vm.position.y -= _retWorld.y;
-    vm.position.z += (-distance - _retWorld.z);
+    sight.getWorldPosition(_sightPos);
+    vm.position.x -= _sightPos.x;
+    vm.position.y -= _sightPos.y;
+    vm.position.z += (-distance - _sightPos.z);
+    vm.updateMatrixWorld(true);
   }
 }
 
@@ -374,6 +436,17 @@ function updateVm(game) {
     document.getElementById('scope-overlay')?.classList.add('hidden');
     return;
   }
+  if (vm.userData.plant) {
+    vm.visible = true;
+    game.gfx?.setVmClip?.(0);
+    document.getElementById('scope-overlay')?.classList.add('hidden');
+    document.getElementById('crosshair')?.classList.add('hidden');
+    vm.position.set(0, 0.02, 0);
+    vm.quaternion.identity();
+    const dev = vm.userData.device;
+    if (dev) dev.rotation.z = Math.sin((game.time || 0) * 2.2) * 0.05;
+    return;
+  }
   const ads = p.ads;
   const optic = game.weapon?.optic || 'iron';
   // Keep the FP viewmodel visible for every optic — the housing is the
@@ -381,24 +454,77 @@ function updateVm(game) {
   const scoped = (optic === 'scope2' || optic === 'scope4') && ads > 0.7;
   vm.visible = true;
   document.getElementById('scope-overlay')?.classList.toggle('hidden', !scoped);
+  document.getElementById('crosshair')?.classList.toggle('hidden', ads > 0.55 || !viewmodelAllowed(game));
   applyPistolAdsLight(game, ads);
   const authored = !!vm.userData.authored;
   const sprint = p.sprint && p.ads < 0.2 && p.stanceT < 0.5 ? 1 : 0;
+  const pistol = game.weapon?.class === 'pistol';
+  const planting = !!p.planting;
 
   // Hip / sprint poses in viewmodel-camera space (camera at origin, looks down -Z).
-  _hipPos.set(authored ? 0.18 : 0.16, authored ? -0.16 : -0.14, authored ? -0.42 : -0.36);
-  if (sprint) _hipPos.set(0.12, -0.28, -0.30);
-  _hipQ.setFromEuler(new THREE.Euler(sprint ? 0.35 : -0.06, authored ? 0.08 : 0.14, 0));
+  // Natural lower-right hold: show the left side of the receiver, barrel
+  // aimed near the crosshair, room for gloves on the grip and handguard.
+  if (pistol) _hipPos.set(0.11, -0.085, -0.34);
+  else _hipPos.set(0.145, -0.10, -0.50);
+  if (sprint) _hipPos.set(0.16, -0.24, -0.34);
+  const hipEuler = sprint
+    ? new THREE.Euler(0.42, 0.55, 0.12)
+    : (pistol
+      ? new THREE.Euler(-0.04, 0.22, 0.05)
+      : new THREE.Euler(-0.05, 0.30, 0.06));
+  _hipQ.setFromEuler(hipEuler);
+
+  // Idle sway (damped in ADS / sprint).
+  const now = game.time || 0;
+  const sway = planting ? 0 : (1 - ads) * (sprint ? 0.2 : 1);
+  _hipPos.x += Math.sin(now * 1.07) * 0.004 * sway;
+  _hipPos.y += Math.sin(now * 1.31 + 0.4) * 0.003 * sway;
+  if (sway) {
+    const e = hipEuler;
+    e.z += Math.sin(now * 0.9) * 0.012 * sway;
+    _hipQ.setFromEuler(e);
+  }
+
+  // Reload: drop, roll, and recover over the clip's reload time.
+  const wpn = game.weapon;
+  if (wpn?.reloading && wpn.reloadAt) {
+    const dur = Math.max(0.4, wpn.reload || 2.2);
+    const u = 1 - Math.max(0, Math.min(1, (wpn.reloadAt - now) / dur));
+    const dip = Math.sin(Math.min(1, u / 0.35) * Math.PI) * (u < 0.7 ? 1 : (1 - u) / 0.3);
+    _hipPos.y -= 0.07 * dip;
+    _hipPos.x += 0.05 * Math.sin(u * Math.PI);
+    _hipPos.z += 0.04 * dip;
+    _hipQ.setFromEuler(new THREE.Euler(0.22 + 0.2 * dip, 0.22, -0.4 * Math.sin(u * Math.PI)));
+    const arms = vm.userData.arms;
+    const lArm = arms?.l || arms?.children?.find?.(c => c.name === 'arm_L');
+    if (lArm && lArm.position) {
+      const tuck = Math.sin(Math.min(1, u * 1.4) * Math.PI) * 0.08;
+      lArm.position.z = (lArm.userData.restZ ?? lArm.position.z) + tuck;
+      lArm.userData.restZ = lArm.userData.restZ ?? (lArm.position.z - tuck);
+    }
+  }
+
+  // Inspect: lift and yaw the weapon to show the left side.
+  if ((game.inspectUntil || 0) > now) {
+    const left = game.inspectUntil - now;
+    const total = game.inspectDur || 1.6;
+    const u = 1 - left / total;
+    const env = Math.sin(Math.min(1, u / 0.15) * Math.PI / 2) * (u < 0.8 ? 1 : (1 - u) / 0.2);
+    _hipPos.set(0.02 + 0.06 * (1 - env), -0.04 * env, -0.38);
+    _hipQ.setFromEuler(new THREE.Euler(-0.12 * env, 0.85 * env, 0.08 * env));
+  }
 
   // ADS: camera sits on the optic sight line at the right eye relief.
-  // Keep the viewmodel near plane at 0.02 m so we never clip through the
-  // gun and look at the back of the receiver.
   const relief = vm.userData.eyeRelief || (authored ? 0.11 : 0.22);
   alignOpticToCamera(vm, relief);
   const vcam = game.gfx.vmCamera;
-  if (vcam && Math.abs(vcam.near - 0.02) > 0.001) {
-    vcam.near = 0.02;
-    vcam.updateProjectionMatrix();
+  if (vcam) {
+    const wantFov = lerp(VM_FOV_HIP, VM_FOV_ADS[optic] ?? 42, ads);
+    if (Math.abs(vcam.fov - wantFov) > 0.05 || Math.abs(vcam.near - 0.02) > 0.001) {
+      vcam.fov = wantFov;
+      vcam.near = 0.02;
+      vcam.updateProjectionMatrix();
+    }
   }
   // Clip the stock/receiver that would sit inside the camera at true
   // eye relief, so ADS never shows a near-plane cross-section.

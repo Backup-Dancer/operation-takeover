@@ -86,7 +86,7 @@ export function instWeapon(id, load) {
   const mag = def.mag + (load?.attach?.magex ? (def.class === 'shotgun' ? 2 : 10) : 0) + (load?.attach?.drum ? 20 : 0);
   return {
     ...def,
-    optic: load?.optic || def.optics[0],
+    optic: (load?.optic && def.optics.includes(load.optic)) ? load.optic : def.optics[0],
     attach: { ...(load?.attach || {}) },
     clip: mag, mag, reserve: def.reserve, heat: 0,
   };

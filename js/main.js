@@ -1,5 +1,6 @@
-import { BUILD, TITLE } from './version.js?v=iv-3.7.1';
-import { Game } from './game.js?v=iv-3.7.1';
+import { BUILD, TITLE } from './version.js?v=iv-4.1.0';
+import { Game } from './game.js?v=iv-4.1.0';
+import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.0';
 
 const meta = document.querySelector('meta[name=build]');
 if (meta && meta.content !== BUILD && !new URLSearchParams(location.search).get('v')) {
@@ -14,6 +15,7 @@ try {
   window.__game = game;
   window.__IV = game;
   window.__IV_BUILD = BUILD;
+  attachFrontEnd(game);
   console.info(TITLE, BUILD);
 } catch (e) {
   console.error('boot failed', e);

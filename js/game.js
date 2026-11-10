@@ -1,26 +1,31 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-3.7.1';
-import { loadSettings, saveSettings } from './settings.js?v=iv-3.7.1';
-import { Gfx } from './gfx.js?v=iv-3.7.1';
-import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic } from './audio.js?v=iv-3.7.1';
-import { Input } from './input.js?v=iv-3.7.1';
-import { UI } from './ui.js?v=iv-3.7.1';
-import { World } from './world.js?v=iv-3.7.1';
-import { Nav } from './nav.js?v=iv-3.7.1';
-import { getOp } from './operators.js?v=iv-3.7.1';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-3.7.1';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-3.7.1';
-import { Gadgets } from './gadgets.js?v=iv-3.7.1';
-import * as combat from './combat.js?v=iv-3.7.1';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-3.7.1';
-import { DroneSys } from './drone.js?v=iv-3.7.1';
-import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-3.7.1';
-import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-3.7.1';
-import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, roomCallout, showScanning } from './banners.js?v=iv-3.7.1';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-3.7.1';
-import { buildHuman, measure } from './characters.js?v=iv-3.7.1';
-import { createFirstPersonViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-3.7.1';
-import { MenuScene } from './menu/MenuScene.js?v=iv-3.7.1';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.0';
+import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.0';
+import { Gfx } from './gfx.js?v=iv-4.1.0';
+import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.0';
+import { mulberry32 } from './math.js?v=iv-4.1.0';
+import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.0';
+import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat } from './match/stats.js?v=iv-4.1.0';
+import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.0';
+import { pickSafeAttackSpawn, inBuilding } from './match/vision.js?v=iv-4.1.0';
+import { Input } from './input.js?v=iv-4.1.0';
+import { UI } from './ui.js?v=iv-4.1.0';
+import { World } from './world.js?v=iv-4.1.0';
+import { Nav } from './nav.js?v=iv-4.1.0';
+import { getOp } from './operators.js?v=iv-4.1.0';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.0';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.0';
+import { Gadgets } from './gadgets.js?v=iv-4.1.0';
+import * as combat from './combat.js?v=iv-4.1.0';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.0';
+import { DroneSys } from './drone.js?v=iv-4.1.0';
+import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.0';
+import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.0';
+import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.0';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.0';
+import { buildHuman, measure } from './characters.js?v=iv-4.1.0';
+import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.0';
+import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.0';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }
@@ -34,6 +39,7 @@ export class Game {
       this.gfx = new Gfx(document.getElementById('game'));
       this.camera = this.gfx.camera;
       this.input = new Input(this, this.settings);
+      attachMatchApi(this);
       this.gadgets = new Gadgets(this);
       this.sys = this;
       this._combat = combat;
@@ -113,15 +119,15 @@ export class Game {
   }
 
   async deploy() {
-    const cfg = {
-      mode: 'bomb',
+    return this.startMatch({
+      mode: 'bomb-rush',
       side: this.settings.side,
       difficulty: this.settings.difficulty,
       bestOf: this.settings.bestOf,
       map: 'halcyon',
-      prepTime: PREP_TIME,
-    };
-    await this.start(cfg);
+      operator: this.settings.operator?.[this.settings.side],
+      skipOperatorPick: true,
+    });
   }
 
   async start(cfg = {}) {
@@ -132,13 +138,15 @@ export class Game {
       this._assets = true;
     }
     await initModelLoaders(this.gfx);
-    this.cfg = {
-      mode: 'bomb', side: 'attack', difficulty: 'veteran', bestOf: 3,
-      map: 'halcyon', prepTime: PREP_TIME, ...cfg,
-    };
-    this.cfg.difficulty = normalizeDifficulty(this.cfg.difficulty);
+    attachMatchApi(this);
+    const config = cfg._fromMatchApi && this.match?.config
+      ? this.match.config
+      : normalizeMatchConfig(cfg, this.settings);
+    if (!this.match || !cfg._fromMatchApi) this.match = new MatchHandle(this, config);
+    this.cfg = { ...config };
+    this._rng = mulberry32(config.seed);
     this.ended = false;
-    this.godMode = !!cfg.godMode || this.godMode;
+    this.godMode = !!cfg.godMode || !!config.godMode || this.godMode;
     // world
     if (this.world) this.world.dispose();
     this.world = new World(this.gfx);
@@ -152,7 +160,7 @@ export class Game {
 
     const pair = this.cfg.sitePair
       ? SITE_PAIRS.find(p => p.id === this.cfg.sitePair) || SITE_PAIRS[0]
-      : SITE_PAIRS[Math.random() * SITE_PAIRS.length | 0];
+      : SITE_PAIRS[(this._rng() * SITE_PAIRS.length) | 0];
     this.round = {
       pair, siteIds: pair.sites, scoreAtk: 0, scoreDef: 0, need: Math.ceil((this.cfg.bestOf || 3) / 2),
       n: 0, phase: 'prep', t: this.cfg.prepTime || PREP_TIME, planted: false, plantPos: null, plantProgress: 0, defuseProgress: 0,
@@ -160,7 +168,7 @@ export class Game {
     };
 
     const side = this.cfg.side || 'attack';
-    const op = getOp(this.cfg.atkOp || this.cfg.defOp || this.settings.operator[side], side);
+    const op = getOp(this.cfg.operator || this.cfg.atkOp || this.cfg.defOp || this.settings.operator[side], side);
     this.player = createPlayer(this);
     this.player.team = side;
     this.player.op = op; this.player.opId = op.id;
@@ -196,6 +204,7 @@ export class Game {
     resetMarks(this);
     loadDispatch().catch(() => {});
 
+    this.hideViewmodel = false; this.viewMode = 'fp';
     this.running = true; this.inMenu = false;
     if (this.menu) this.menu.pause();
     this.ui.hide();
@@ -206,11 +215,19 @@ export class Game {
     this._last = performance.now();
     if (!this._looping) { this._looping = true; requestAnimationFrame(t => this.loop(t)); }
     this.updateAmmo();
+    resetMatchStats(this);
     this._setPhase('prep', this.cfg.prepTime || PREP_TIME);
     stopMusic();
     hideMatchOverlays();
-    this._beginPrep(side);
-    if (!this.godMode) showMatchCard(this);
+    this.emitMatch?.('matchstart', {
+      map: this.cfg.map, mode: this.cfg.mode, difficulty: this.cfg.difficulty,
+      side, operator: this.player.opId, bestOf: this.cfg.bestOf, seed: this.cfg.seed,
+      sites: this.round.siteIds, lineups: lineupPayload(this),
+    });
+    await this._maybePick();
+    this._beginPrep(this.player.team);
+    this.emitMatch?.('roundstart', this._roundPayload());
+    if (!this.godMode && !this.cfg.skipMatchCard) showMatchCard(this);
     // Lazy-load the rest of the arsenal after the first frame so the
     // official 1K FP set stays off the critical path.
     const hold = [this.weapon?.id, this.secWeapon?.id];
@@ -221,8 +238,8 @@ export class Game {
   _spawnPlayer(side) {
     const w = this.world;
     if (side === 'attack') {
-      const s = w.spawns.attack[Math.random() * w.spawns.attack.length | 0];
-      this.player.pos.set(s.x, 0, s.z); this.player.yaw = s.yaw || 0;
+      const s = pickSafeAttackSpawn(this, 0, this._rng || Math.random);
+      this.player.pos.set(s.x, s.y || 0, s.z); this.player.yaw = s.yaw || 0;
     } else {
       const site = w.sites[this.round.pair.sites[0]];
       const roomY = floorY(site.plant.floor || site.floor || '1');
@@ -299,6 +316,11 @@ export class Game {
       else this.gfx.render();
       return;
     }
+    if (this._pauseSim) {
+      this.gfx.tickAuto(dt);
+      this.gfx.render();
+      return;
+    }
     this.time += dt;
     this.input.pollPad();
     this.tick(dt);
@@ -314,6 +336,12 @@ export class Game {
     if (inp.consume('pause')) { this.inMenu = true; this.ui.show('pause'); return; }
     if (inp.consume('score')) { this.inMenu = true; this.ui.show('score'); return; }
 
+    if (!p.alive && !p.downed) {
+      this._tickSpectate(dt);
+      this._tickSim(dt);
+      return;
+    }
+
     if (this.droneSys.active || this.droneSys.camsOn) {
       if (this.vm) this.vm.visible = false;
       this._tickFeed(dt);
@@ -321,7 +349,7 @@ export class Game {
       return;
     }
 
-    if (inp.consume('drone')) { if (p.team === 'attack') this.enterDrone(); else this.enterCams(); }
+    if (inp.consume('drone')) { if (p.team === 'attack' && !p.downed) this.enterDrone(); else this.enterCams(); }
     if (inp.consume('cams')) this.enterCams();
 
     updatePlayer(this, dt);
@@ -331,7 +359,7 @@ export class Game {
     this._cullBots();
     if (this.gfx.quality === 'high') this.gfx.limitShadows?.(this.camera);
 
-    if (inp.fire && p.alive) combat.fireWeapon(this);
+    if (inp.fire && p.alive && !p.downed) combat.fireWeapon(this);
     if (inp.consume('reload')) combat.beginReload(this);
     combat.finishReload(this);
 
@@ -344,6 +372,7 @@ export class Game {
     if (inp.consume('rappel')) this.tryRappelOrVault();
     if (inp.consume('interact')) this.activatePrompt();
     else if (inp.held.has('interact')) this.interact(dt, true);
+    else if (this.player.planting) this._cancelPlant();
 
     this._updateInteractPrompt();
     this._tickSim(dt);
@@ -421,18 +450,41 @@ export class Game {
       if (!holding || dt) w.toggleDoor(door), sfx.door();
       return true;
     }
+    // revive a downed teammate
+    if (p.alive && !p.downed) {
+      const downed = this._nearDownedTeammate();
+      if (downed && !downed._revivedThisRound) {
+        if (holding) {
+          if (!this._revive || this._revive.who !== downed) this._revive = { who: downed, t: 0 };
+          this._revive.t += dt || 0;
+          this.toast(`Reviving ${(this._revive.t / REVIVE_TIME * 100)|0}%`);
+          if (this._revive.t >= REVIVE_TIME) {
+            downed.downed = false; downed.alive = true; downed.hp = REVIVE_HP;
+            downed._revivedThisRound = true; downed.bleedAt = 0;
+            recordRevive(this, downed, p);
+            this.toast('Teammate up');
+            this._revive = null;
+          }
+        }
+        return true;
+      }
+      this._revive = null;
+    }
     // plant / defuse
     if (this.round.phase === 'action' || this.round.planted) {
       const site = this._nearPlant();
       if (this.player.team === 'attack' && site && !this.round.planted) {
         if (holding) this._plant(dt, site);
+        else this._cancelPlant();
         return true;
       }
       if (this.player.team === 'defend' && this.round.planted && this._nearDefuser()) {
         if (holding) this._defuse(dt);
+        else this._cancelPlant();
         return true;
       }
     }
+    this._cancelPlant();
     // reinforce in prep
     if (this.round.phase === 'prep' && p.team === 'defend') {
       const ch = w.chunks.find(c => !c.destroyed && !c.reinforced && Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < 1.6);
@@ -472,22 +524,92 @@ export class Game {
     const p = this.round.plantPos; if (!p) return false;
     return Math.hypot(p.x - this.player.pos.x, p.z - this.player.pos.z) < 1.4;
   }
+  _beginPlantPose(kind) {
+    if (this._plantingKind === kind) return;
+    this._plantingKind = kind;
+    this.player.planting = true;
+    this.player.adsToggle = false;
+    this.player.sprint = false;
+    if (this.input) this.input.ads = false;
+    this.doSetStance ? null : null;
+    try { doSetStance(this, 1); } catch (e) {}
+    this.player.stanceT = 1;
+    if (!this._weaponVmBackup) this._weaponVmBackup = this.vm;
+    const vis = createDefuserViewmodel();
+    this.gfx.setViewmodel(vis);
+    this.vm = vis;
+  }
+  _cancelPlant() {
+    if (!this.player?.planting && !this._plantingKind) {
+      if (this.round) {
+        // keep progress only if mid-hold was already cleared
+      }
+      return;
+    }
+    const was = this._plantingKind;
+    this.player.planting = false;
+    this._plantingKind = null;
+    if (this.round) {
+      if (was === 'plant') this.round.plantProgress = 0;
+      if (was === 'defuse') this.round.defuseProgress = 0;
+    }
+    setProgressRing(0);
+    if (this._weaponVmBackup) {
+      this.gfx.setViewmodel(this._weaponVmBackup);
+      this.vm = this._weaponVmBackup;
+      this._weaponVmBackup = null;
+    } else {
+      this._tryAuthoredWeapon();
+    }
+  }
+  _finishPlantPose() {
+    this.player.planting = false;
+    this._plantingKind = null;
+    setProgressRing(0);
+    if (this._weaponVmBackup) {
+      this.gfx.setViewmodel(this._weaponVmBackup);
+      this.vm = this._weaponVmBackup;
+      this._weaponVmBackup = null;
+    } else {
+      this._tryAuthoredWeapon();
+    }
+  }
   _plant(dt, site) {
+    const moving = Math.hypot(this.input?.moveX || 0, this.input?.moveY || 0) > 0.4;
+    if (moving && (dt || 0) < 0.5) { this._cancelPlant(); return; }
+    this._beginPlantPose('plant');
     this.round.plantProgress += dt;
-    this.toast(`Planting ${(this.round.plantProgress / PLANT_TIME * 100)|0}%`);
-    if (this.round.plantProgress >= PLANT_TIME) {
+    const need = this.cfg.plantTime || PLANT_TIME;
+    const frac = Math.max(0, Math.min(1, this.round.plantProgress / need));
+    setProgressRing(frac, 'PLANT');
+    if (this.vm?.userData?.device) {
+      this.vm.userData.device.rotation.z = Math.sin((this.time || 0) * 3) * 0.04;
+    }
+    if (this.round.plantProgress >= need) {
       this.round.planted = true;
       this.round.plantPos = { x: site.plant.x, y: this.player.pos.y, z: site.plant.z, site: site.id };
-      this.round.t = BOMB_TIME;
+      this.round.t = this.cfg.bombTime || BOMB_TIME;
       this.round.plantProgress = 0;
+      this._finishPlantPose();
       this.toast('Defuser planted');
       sfx.plant();
+      announce('plant');
+      recordObjective(this, this.player, 'plant');
+      this.emitMatch?.('phase', this._phasePayload());
     }
   }
   _defuse(dt) {
+    const moving = Math.hypot(this.input?.moveX || 0, this.input?.moveY || 0) > 0.4;
+    if (moving && (dt || 0) < 0.5) { this._cancelPlant(); return; }
+    this._beginPlantPose('defuse');
     this.round.defuseProgress += dt;
-    this.toast(`Defusing ${(this.round.defuseProgress / DEFUSE_TIME * 100)|0}%`);
-    if (this.round.defuseProgress >= DEFUSE_TIME) this._endRound('defend', 'defuse');
+    const need = this.cfg.defuseTime || DEFUSE_TIME;
+    const frac = Math.max(0, Math.min(1, this.round.defuseProgress / need));
+    setProgressRing(frac, 'DEFUSE');
+    if (this.round.defuseProgress >= need) {
+      this._finishPlantPose();
+      this._endRound('defend', 'defuse');
+    }
   }
 
   useGadget() {
@@ -529,6 +651,11 @@ export class Game {
     return this.gadgets.utility.some(u => u.kind === 'blindwell' && u.live && pos.distanceTo(u.pos) < (u.r || 4));
   }
 
+  inspectWeapon(dur = 1.6) {
+    this.inspectDur = dur;
+    this.inspectUntil = (this.time || 0) + dur;
+  }
+
   swapWeapon() {
     this.swapT = this.player.stanceT >= 1.8 ? 0.9 : 0.45;
     if (this.weaponSlot === 'primary') {
@@ -537,6 +664,7 @@ export class Game {
       this.weapon = this._stash || instWeapon(this.loadout.primary, this.loadout); this.weaponSlot = 'primary';
     }
     this.buildVm(); this.updateAmmo();
+    this._tryAuthoredWeapon();
   }
 
   ping() {
@@ -611,6 +739,7 @@ export class Game {
     this.gadgets.update(dt);
     this.world.updateDoors(dt);
     this.world.updateFx?.(dt);
+    this._tickBleed(dt);
     if (!this._freezeBots) updateBots(this, dt);
     this.droneSys?.updateBots?.(dt);
     updateMarks(this);
@@ -627,55 +756,92 @@ export class Game {
   exitCams() { this.droneSys.exitCams(); this.inCams = false; }
 
   hurt(who, dmg, from, head, info) {
-    if (!who || !who.alive) return;
+    if (!who) return;
+    if (!who.alive && !who.downed) return;
     if (who === this.player && this.godMode) return;
-    const mul = 1 - (who.armor || 0) * 0.12;
+    const already = info?.part != null;
+    const mul = already ? 1 : (1 - (who.armor || 0) * 0.12);
     const fromBot = info?.who && info.who !== this.player && info.who.kind === 'operator';
     const dcfg = fromBot ? difficultyParams(this.cfg?.difficulty) : null;
-    who.hp -= dmg * mul * (dcfg ? dcfg.dmg : 1);
+    const dealt = dmg * mul * (dcfg ? dcfg.dmg : 1);
+    if (who.downed) {
+      this._finishPawn(who, info, head);
+      return;
+    }
+    who.hp -= dealt;
     if (who === this.player) {
       const fl = document.getElementById('damage-flash');
       if (fl) { fl.style.opacity = 0.6; setTimeout(() => fl.style.opacity = 0, 120); }
       this.updateAmmo();
     }
     if (who.hp <= 0) {
-      who.hp = 0; who.alive = false; who.deaths = (who.deaths || 0) + 1;
-      if (info?.who) info.who.kills = (info.who.kills || 0) + 1;
-      if (who === this.player) {
-        this.toast('You are down');
-        clearAdsToggle(this);
-        showEliminated(this, info?.who);
-        const flw = document.getElementById('flash-white');
-        if (flw) { flw.style.opacity = 0.85; setTimeout(() => { flw.style.opacity = 0; }, 140); }
-      } else if (info?.who === this.player) {
-        scorePopup(this, head ? 'headshot' : 'elim');
+      who.hp = 0;
+      if (!who._revivedThisRound) {
+        who.downed = true;
+        who.alive = true;
+        who.bleedAt = 0;
+        who.sprint = false;
+        who.adsToggle = false;
+        if (who === this.player) {
+          clearAdsToggle(this);
+          this.toast('You are down');
+          announce('down');
+          document.getElementById('hud-downed')?.classList.remove('hidden');
+          const flw = document.getElementById('flash-white');
+          if (flw) { flw.style.opacity = 0.7; setTimeout(() => { flw.style.opacity = 0; }, 140); }
+        }
+        recordDown(this, who, info?.who);
+        return;
       }
-      this._checkElim();
+      this._finishPawn(who, info, head);
     }
   }
 
+  _finishPawn(who, info, head) {
+    if (!who || (!who.alive && !who.downed)) return;
+    who.hp = 0; who.alive = false; who.downed = false;
+    recordKill(this, who, info?.who, { head: !!(head || info?.part === 'head') });
+    if (who === this.player) {
+      clearAdsToggle(this);
+      showEliminated(this, info?.who);
+      document.getElementById('hud-downed')?.classList.add('hidden');
+      const flw = document.getElementById('flash-white');
+      if (flw) { flw.style.opacity = 0.85; setTimeout(() => { flw.style.opacity = 0; }, 140); }
+    } else if (info?.who === this.player) {
+      scorePopup(this, (head || info?.part === 'head') ? 'headshot' : 'elim');
+    }
+    this._checkElim();
+  }
+
   _checkElim() {
-    const atk = [this.player, ...this.bots].filter(b => b.team === 'attack' && b.alive).length;
-    const def = [this.player, ...this.bots].filter(b => b.team === 'defend' && b.alive).length;
-    if (atk === 0) this._endRound('defend', 'elim');
-    else if (def === 0 && !this.round.planted) this._endRound('attack', 'elim');
-    else if (def === 0 && this.round.planted) { /* attackers can still lose on timer? they already planted — they win */ this._endRound('attack', 'elim'); }
+    const pawns = [this.player, ...this.bots];
+    const standing = (team) => pawns.filter(b => b.team === team && b.alive && !b.downed).length;
+    const hanging = (team) => pawns.filter(b => b.team === team && b.downed).length;
+    const atk = standing('attack'), def = standing('defend');
+    // Downed operators can still be revived if a teammate is standing.
+    if (atk === 0 && hanging('attack') === 0) this._endRound('defend', 'elim');
+    else if (def === 0 && hanging('defend') === 0 && !this.round.planted) this._endRound('attack', 'elim');
+    else if (def === 0 && hanging('defend') === 0 && this.round.planted) this._endRound('attack', 'elim');
   }
 
   _setPhase(ph, t) {
     this.round.phase = ph; this.round.t = t;
-    document.getElementById('hud-phase').textContent = ph.toUpperCase();
+    const el = document.getElementById('hud-phase');
+    if (el) el.textContent = ph.toUpperCase();
+    if (ph === 'action') this.round.actionAt = this.time || 0;
     if (ph !== 'prep') {
       this._prepCount = null;
       document.getElementById('hud-countdown')?.classList.remove('show');
     }
+    this.emitMatch?.('phase', this._phasePayload());
   }
 
   _tickRound(dt) {
     this.round.t -= dt;
     if (this.round.phase === 'prep' && this.round.t <= 0) {
-      this._setPhase('action', ACTION_TIME);
+      this._setPhase('action', this.cfg.actionTime || ACTION_TIME);
       this.toast('Action phase');
+      announce('action');
       this.droneSys?._syncHud?.();
     } else if (this.round.phase === 'prep' && this.round.t <= 5) {
       const n = Math.ceil(this.round.t);
@@ -699,19 +865,37 @@ export class Game {
   }
 
   _endRound(winner, why) {
-    if (this.round.phase === 'intermission' || this.ended) return;
+    if (this.round.phase === 'intermission' || this.round.phase === 'matchend' || this.ended) return;
     if (winner === 'attack') this.round.scoreAtk++; else this.round.scoreDef++;
+    const reasonKey = why === 'timeout' && winner === 'attack' ? 'detonate' : why;
     const reason = why === 'elim' ? 'HOSTILES ELIMINATED'
       : why === 'defuse' ? 'DEFUSER DISABLED'
       : why === 'timeout' && winner === 'attack' ? 'DEFUSER DETONATED'
       : 'TIME EXPIRED';
     const mates = [this.player, ...this.bots].filter(o => o && o.team === winner);
-    const clutch = this.player.team === winner && this.player.alive && mates.filter(o => o !== this.player && o.alive).length === 0;
+    const clutch = this.player.team === winner && this.player.alive && !this.player.downed && mates.filter(o => o !== this.player && o.alive && !o.downed).length === 0;
+    const flawless = mates.every(o => o.alive && !o.downed);
+    awardRoundWin(this, winner, clutch);
+    if (why === 'defuse') recordObjective(this, this.player.team === 'defend' ? this.player : (this.bots.find(b => b.team === 'defend' && b.alive) || this.player), 'defuse');
     showWon(this, reason, { clutch });
+    announce(this.player.team === winner ? 'win' : 'lose');
     this.toast((winner === 'attack' ? 'Attack' : 'Defense') + ' wins the round (' + why + ')');
+    const stats = collectStats(this);
+    this.emitMatch?.('roundend', {
+      round: this.round.n, winner, reason: reasonKey, clutch, flawless,
+      score: { attack: this.round.scoreAtk, defend: this.round.scoreDef, need: this.round.need },
+      stats, highlights: stats.highlights,
+    });
     if (this.round.scoreAtk >= this.round.need || this.round.scoreDef >= this.round.need) {
       this.round.winner = this.round.scoreAtk > this.round.scoreDef ? 'attack' : 'defend';
       this.ended = true;
+      this.round.phase = 'matchend';
+      this.emitMatch?.('matchend', {
+        winner: this.round.winner,
+        score: { attack: this.round.scoreAtk, defend: this.round.scoreDef, need: this.round.need },
+        stats, mvp: stats.players.find(p => p.id === stats.mvpId) || stats.players[0],
+        highlights: stats.highlights,
+      });
       this.inMenu = true;
       this.ui.show('end');
       return;
@@ -721,25 +905,28 @@ export class Game {
 
   async _nextRound() {
     this.round.n++;
-    const mid = Math.ceil((this.cfg.bestOf || 3) / 2);
-    if (this.round.n === mid && !this.round.swapped) {
-      this.round.swapped = true;
-      this.player.team = this.player.team === 'attack' ? 'defend' : 'attack';
-      this.cfg.side = this.player.team;
-      this.toast('Sides swapped');
-    }
+    // Bomb Rush best of 3: sides swap at the start of every new round.
+    this.round.swapped = true;
+    this.player.team = this.player.team === 'attack' ? 'defend' : 'attack';
+    this.cfg.side = this.player.team;
+    const op = getOp(this.settings.operator?.[this.player.team] || this.cfg.operator, this.player.team);
+    this.player.op = op; this.player.opId = op.id;
+    this.player.speed = op.speed; this.player.armor = op.armor;
+    this.toast('Sides swapped');
     this.round.planted = false; this.round.plantPos = null; this.round.plantProgress = 0; this.round.defuseProgress = 0;
-    // reset pawns
-    this.player.alive = true; this.player.hp = 100; this.player.rappelling = null;
+    this.player.alive = true; this.player.hp = MAX_HP; this.player.rappelling = null;
+    resetRoundCombat(this.player);
+    document.getElementById('hud-downed')?.classList.add('hidden');
     this._spawnPlayer(this.player.team);
-    const hp = difficultyParams(this.cfg.difficulty).hp;
-    for (const b of this.bots) { b.alive = true; b.hp = hp; }
+    await this._respawnBots();
     if (this.inDrone) this.exitDrone();
     if (this.inCams) this.exitCams();
     this.droneSys.spawnRound();
     resetMarks(this);
     this._setPhase('prep', this.cfg.prepTime || PREP_TIME);
+    await this._maybePick();
     this._beginPrep(this.player.team);
+    this.emitMatch?.('roundstart', this._roundPayload());
   }
 
   _bindPrompt() {
@@ -805,13 +992,29 @@ export class Game {
         action = 'door';
       }
       if (this._canVault() && action !== 'door') { msg = 'VAULT'; action = 'vault'; }
+      const downed = this._nearDownedTeammate();
+      if (downed && p.alive && !p.downed) { msg = 'HOLD TO REVIVE'; action = 'revive'; }
       const site = this._nearPlant();
       if (site && p.team === 'attack' && !this.round.planted && this.round.phase === 'action') { msg = 'HOLD TO PLANT'; action = 'plant'; }
       if (this.round.planted && p.team === 'defend' && this._nearDefuser()) { msg = 'HOLD TO DEFUSE'; action = 'defuse'; }
     }
     if (p.outOfBounds) { msg = 'Return to the operation area'; action = ''; }
     this.promptAction = action;
-    if (msg && el) {
+    const ads = (p.ads || 0) > 0.5;
+    const act = document.getElementById('tb-interact');
+    const touch = document.getElementById('touch');
+    const touchOn = !!(touch && !touch.classList.contains('hidden') && !touch.classList.contains('pad-hidden') && !touch.classList.contains('feed-on'));
+    const showAct = !!(msg && action && !ads && touchOn);
+    if (act) {
+      const lbl = act.querySelector('.tlbl');
+      const text = msg || 'ACTION';
+      if (lbl) lbl.textContent = text;
+      else act.setAttribute('aria-label', text);
+      act.classList.toggle('hidden', !showAct);
+    }
+    // Touch uses tb-interact; keep the centre prompt for gamepad / overlap-free fallback
+    // only when the on-screen ACTION button is not shown.
+    if (msg && el && !showAct && !ads) {
       const glyph = this.input?.interactGlyph?.() || '';
       el.textContent = msg + glyph;
       el.classList.remove('hidden');
@@ -823,12 +1026,37 @@ export class Game {
   _updateHud() {
     document.getElementById('hp-fill').style.width = Math.max(0, this.player.hp) + '%';
     document.getElementById('hp-n').textContent = Math.max(0, this.player.hp)|0;
+    const icon = document.getElementById('hud-op-icon');
+    if (icon) {
+      const id = this.player.opId || this.player.op?.id || '';
+      if (id && icon.dataset.op !== id) {
+        icon.src = `assets/ui/operators/${id}_bust.webp`;
+        icon.alt = id;
+        icon.dataset.op = id;
+      }
+    }
     const obj = document.getElementById('hud-obj');
-    if (this.round.planted) obj.textContent = this.player.team === 'defend' ? 'Defuse the defuser.' : 'Hold the site. Defend the defuser.';
-    else if (this.round.phase === 'prep') obj.textContent = this.player.team === 'attack' ? 'Prep — drone and choose an entry.' : 'Prep — reinforce, barricade, set gadgets.';
-    else obj.textContent = this.player.team === 'attack' ? 'Plant the defuser at a site, or eliminate the defense.' : 'Stop the plant. Hold the sites.';
+    let objText = '';
+    if (this.round.planted) objText = this.player.team === 'defend' ? 'Defuse the defuser.' : 'Hold the site. Defend the defuser.';
+    else if (this.round.phase === 'prep') objText = this.player.team === 'attack' ? 'Prep — drone and choose an entry.' : 'Prep — reinforce, barricade, set gadgets.';
+    else objText = this.player.team === 'attack' ? 'Plant the defuser at a site, or eliminate the defense.' : 'Stop the plant. Hold the sites.';
+    if (obj && obj.dataset.text !== objText) {
+      const first = obj.dataset.text == null;
+      obj.dataset.text = objText;
+      if (first) { obj.textContent = objText; obj.style.opacity = '1'; }
+      else {
+        obj.style.opacity = '0';
+        clearTimeout(this._objFade);
+        this._objFade = setTimeout(() => {
+          obj.textContent = objText;
+          obj.style.opacity = '1';
+        }, 160);
+      }
+    }
     const ch = document.getElementById('crosshair');
-    if (ch) ch.classList.toggle('hidden', this.player.ads > 0.55 || this.inDrone || this.inCams);
+    if (ch) ch.classList.toggle('hidden', this.player.ads > 0.55 || this.inDrone || this.inCams || this.player.downed || !this.player.alive);
+    document.getElementById('hud-downed')?.classList.toggle('hidden', !this.player.downed);
+    if (!this.player.planting && !this._reinf) setProgressRing(0);
     const cd = document.getElementById('hud-countdown');
     if (cd && (this.round.phase !== 'prep' || this.round.t > 5)) cd.classList.remove('show');
     const viewPos = (this.inDrone || this.droneSys?.active) && this.droneSys?.drone?.pos
@@ -915,6 +1143,116 @@ export class Game {
       this.gfx.setViewmodel(vis);
       this.vm = vis;
     } catch (e) { console.warn('authored vm failed', e); }
+  }
+
+  _roundPayload() {
+    const r = this.round || {};
+    return {
+      round: r.n || 0,
+      phase: r.phase,
+      side: this.player?.team,
+      t: r.t,
+      score: { attack: r.scoreAtk || 0, defend: r.scoreDef || 0, need: r.need || 2 },
+      sites: r.siteIds,
+      swapped: !!r.swapped,
+    };
+  }
+
+  _phasePayload() {
+    const r = this.round || {};
+    return {
+      round: r.n || 0,
+      phase: r.phase,
+      t: r.t,
+      planted: !!r.planted,
+      plantSite: r.plantPos?.site || null,
+      score: { attack: r.scoreAtk || 0, defend: r.scoreDef || 0, need: r.need || 2 },
+    };
+  }
+
+  async _maybePick() {
+    const cfg = this.cfg || {};
+    if (cfg.skipOperatorPick !== false) return;
+    const side = this.player?.team || cfg.side;
+    this._awaitingPick = true;
+    this.emitMatch?.('operatorpick', {
+      round: this.round?.n || 0, side, timeout: cfg.pickTimeout || 8,
+      roster: rosterPayload(this, side), current: this.player?.opId,
+    });
+    const id = await new Promise((resolve) => {
+      const t = setTimeout(() => resolve(this.player?.opId), (cfg.pickTimeout || 8) * 1000);
+      this._resolvePick = (picked) => { clearTimeout(t); resolve(picked || this.player?.opId); };
+    });
+    this._awaitingPick = false;
+    this._resolvePick = null;
+    if (id && id !== this.player.opId) {
+      const op = getOp(id, side);
+      this.player.op = op; this.player.opId = op.id;
+      this.player.speed = op.speed; this.player.armor = op.armor;
+    }
+  }
+
+  async _respawnBots() {
+    this._botGen = (this._botGen || 0) + 1;
+    for (const b of this.bots || []) {
+      b._dead = true;
+      if (b.mesh?.parent) b.mesh.parent.remove(b.mesh);
+    }
+    this.bots = spawnBots(this);
+    await readyBots(this.bots);
+    for (const b of this.bots) { resetRoundCombat(b); ensureStat(b, { player: this.player }); }
+  }
+
+  _nearDownedTeammate() {
+    const p = this.player;
+    let best = null, bd = 1.6;
+    const list = [this.player, ...this.bots];
+    for (const b of list) {
+      if (!b.downed || b === p || b.team !== p.team) continue;
+      const d = Math.hypot(b.pos.x - p.pos.x, b.pos.z - p.pos.z);
+      if (d < bd && Math.abs((b.pos.y || 0) - (p.pos.y || 0)) < 1.2) { bd = d; best = b; }
+    }
+    return best;
+  }
+
+  _tickBleed(dt) {
+    for (const p of [this.player, ...this.bots]) {
+      if (!p?.downed) continue;
+      p.bleedAt = (p.bleedAt || 0) + dt;
+      const solo = ![this.player, ...this.bots].some(o => o !== p && o.team === p.team && o.alive && !o.downed);
+      const limit = solo ? Math.min(BLEED_TIME, 6) : BLEED_TIME;
+      if (p.bleedAt >= limit) this._finishPawn(p, {}, false);
+    }
+  }
+
+  _tickSpectate(dt) {
+    const inp = this.input;
+    const mates = this.bots.filter(b => b.team === this.player.team && b.alive);
+    if (inp.consume('cycle') || inp.consume('drone') || inp.consume('swap')) {
+      this._specI = ((this._specI || 0) + 1) % Math.max(1, mates.length);
+    }
+    if (inp.consume('cams')) this.enterCams();
+    const who = mates[this._specI || 0];
+    if (!who) return;
+    const cam = this.gfx.camera;
+    cam.position.set(who.pos.x, who.pos.y + 1.55, who.pos.z);
+    cam.lookAt(
+      who.pos.x + Math.sin(who.yaw || 0),
+      who.pos.y + 1.45,
+      who.pos.z + Math.cos(who.yaw || 0),
+    );
+    if (this.vm) this.vm.visible = false;
+    this.hideViewmodel = true;
+  }
+
+  showHitMarker(kind) {
+    const el = document.getElementById('hit-marker');
+    if (!el) return;
+    el.classList.toggle('head', kind === 'head');
+    el.classList.remove('hidden');
+    el.classList.add('show');
+    clearTimeout(this._hmT);
+    this._hmT = setTimeout(() => el.classList.remove('show'), 120);
   }
 
   // test helpers

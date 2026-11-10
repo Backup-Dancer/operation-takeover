@@ -8,16 +8,17 @@
 <meta name="apple-mobile-web-app-title" content="Takeover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0b0c0e">
-<meta name="build" content="iv-3.7.1">
+<meta name="build" content="iv-4.1.0">
 <title>Operation: Takeover</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="assets/icons/favicon.png">
 <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=iv-4.1.0">
+<link rel="stylesheet" href="css/frontend.css?v=iv-4.1.0">
 <script type="importmap">
 {
   "imports": {
-    "three": "./vendor/three/three.module.js?v=iv-3.7.1",
+    "three": "./vendor/three/three.module.js?v=iv-4.1.0",
     "three/addons/": "./vendor/three/addons/"
   }
 }
@@ -65,14 +66,22 @@ if ('serviceWorker' in navigator) {
 <div id="hud" class="hidden">
   <div id="hud-top">
     <div id="hud-compass"><span class="hdg-letter">N</span><span class="hdg-ticks"></span></div>
-    <div id="hud-phase">PREP</div>
-    <div id="hud-timer">0:45</div>
-    <div id="hud-score"><span id="hud-score-atk">0</span><span class="sep">–</span><span id="hud-score-def">0</span></div>
-    <div id="hud-squad"></div>
+    <div id="hud-top-row">
+      <div id="hud-squad-atk" class="squad-col atk"></div>
+      <div id="hud-score"><span id="hud-score-atk">0</span><span class="sep">–</span><span id="hud-score-def">0</span></div>
+      <div id="hud-clock">
+        <div id="hud-timer">0:45</div>
+        <div id="hud-phase">PREP</div>
+      </div>
+      <div id="hud-squad-def" class="squad-col def"></div>
+    </div>
   </div>
   <div id="hud-room"></div>
   <div id="hud-obj">Secure a site and plant the defuser.</div>
-  <div id="hud-health"><div class="bar"><i id="hp-fill"></i></div><span id="hp-n">100</span></div>
+  <div id="hud-health">
+    <img id="hud-op-icon" alt="" width="36" height="36">
+    <div class="hp-wrap"><div class="bar"><i id="hp-fill"></i></div><span id="hp-n">100</span></div>
+  </div>
   <div id="hud-ammo"><b id="ammo-clip">30</b><span id="ammo-res">/ 150</span><small id="ammo-wpn">CARBINE</small></div>
   <div id="hud-toast"></div>
   <div id="hud-scorepops"></div>
@@ -85,134 +94,311 @@ if ('serviceWorker' in navigator) {
   <div id="hud-elim" class="hidden"></div>
   <div id="hud-matchcard" class="hidden"></div>
   <div id="crosshair" class="ch-cross"></div>
+  <div id="hit-marker" class="hidden"></div>
+  <div id="hud-downed" class="hidden">DOWNED — hold close to a teammate to be revived</div>
   <button type="button" id="hud-prompt" class="hidden" aria-label="Interact"></button>
   <div id="hud-detonate" class="hidden">
     <div class="det-title">DETONATOR</div>
     <div id="det-list"></div>
   </div>
-  <div id="hud-compass"></div>
 </div>
 
 <div id="touch" class="hidden">
+
+  <svg class="ticon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <symbol id="ic-fire" viewBox="0 0 32 32"><path d="M14 4l2 8-3 1 7 15-2-8 3-1z" fill="currentColor" stroke="none"/><circle cx="22" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-ads" viewBox="0 0 32 32"><circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 5v4M16 23v4M5 16h4M23 16h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="16" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="ic-crouch" viewBox="0 0 32 32"><path d="M14 6a3 3 0 1 1 0.2 0M13 10l-2 6 4 2 3-4 4 8M11 16l-4 6M15 18v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-prone" viewBox="0 0 32 32"><path d="M7 22h16M8 22l4-3 6 1 5-4M9 19a2 2 0 1 0 0.2 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-reload" viewBox="0 0 32 32"><path d="M8 16a8 8 0 1 1 2.4 5.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 22v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-leanl" viewBox="0 0 32 32"><path d="M20 6l-10 10 10 10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-leanr" viewBox="0 0 32 32"><path d="M12 6l10 10-10 10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-gadget" viewBox="0 0 32 32"><path d="M16 5l9 5v10l-9 5-9-5V10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-util" viewBox="0 0 32 32"><rect x="9" y="6" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 12h6M13 16h6M13 20h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-ping" viewBox="0 0 32 32"><path d="M16 27s-8-8.2-8-13a8 8 0 1 1 16 0c0 4.8-8 13-8 13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="14" r="2.4" fill="currentColor"/></symbol>
+    <symbol id="ic-sprint" viewBox="0 0 32 32"><path d="M18 6a2.4 2.4 0 1 1 .2 0M10 14l6-2 3 4 5-1M16 12l-2 8 5 5M14 20l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-drone" viewBox="0 0 32 32"><rect x="8" y="10" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 14H5m22 0h-3M10 10V7m12 3V7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-cam" viewBox="0 0 32 32"><rect x="5" y="10" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 14l6-3v10l-6-3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-swap" viewBox="0 0 32 32"><path d="M8 12h16l-5-5M24 20H8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-pause" viewBox="0 0 32 32"><path d="M11 8v16M21 8v16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-score" viewBox="0 0 32 32"><path d="M8 9h16M8 16h16M8 23h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-action" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 10v8l5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-rappel" viewBox="0 0 32 32"><path d="M16 4v24M12 10l4-3 4 3M12 22c2 3 6 3 8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-detonate" viewBox="0 0 32 32"><circle cx="16" cy="18" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 10V6m-3 1 1.5 3M19 7l-1.5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-jump" viewBox="0 0 32 32"><path d="M8 24h16M10 18l6-10 6 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-scan" viewBox="0 0 32 32"><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 4v4M16 24v4M4 16h4M24 16h4M16 16l6-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-switch" viewBox="0 0 32 32"><path d="M7 16h18M20 10l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-exit" viewBox="0 0 32 32"><path d="M10 8h12v16H10M14 16h12M22 12l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
   <div id="stick-base" class="tctl" data-ctl="stick"><div id="stick-knob"></div></div>
-  <button id="tb-sprint" class="tbtn" data-ctl="sprint">SPRINT</button>
+  <button id="tb-sprint" class="tbtn" data-ctl="sprint" aria-label="SPRINT"><svg class="ticon" aria-hidden="true"><use href="#ic-sprint"/></svg><span class="tlbl">SPRINT</span></button>
   <div id="look-zone"></div>
-  <button id="tb-fire" class="tbtn tbtn-fire" data-ctl="fire">FIRE</button>
-  <button id="tb-fire-l" class="tbtn tbtn-fire-l hidden" data-ctl="fireL">FIRE</button>
-  <button id="tb-ads" class="tbtn" data-ctl="ads">ADS</button>
-  <button id="tb-crouch" class="tbtn" data-ctl="crouch">CRCH</button>
-  <button id="tb-prone" class="tbtn" data-ctl="prone">PRONE</button>
-  <button id="tb-leanl" class="tbtn tbtn-lean" data-ctl="leanL">L</button>
-  <button id="tb-leanr" class="tbtn tbtn-lean" data-ctl="leanR">R</button>
-  <button id="tb-reload" class="tbtn" data-ctl="reload">RLD</button>
-  <button id="tb-gadget" class="tbtn tbtn-gad" data-ctl="gadget">GADGET</button>
-  <button id="tb-gadget2" class="tbtn" data-ctl="gadget2">UTIL</button>
-  <button id="tb-drone" class="tbtn" data-ctl="drone">DRONE</button>
-  <button id="tb-cams" class="tbtn hidden" data-ctl="cams">CAM</button>
-  <button id="tb-interact" class="tbtn tbtn-act" data-ctl="interact">ACTION</button>
-  <button id="tb-swap" class="tbtn" data-ctl="swap">SWAP</button>
-  <button id="tb-ping" class="tbtn" data-ctl="ping">PING</button>
-  <button id="tb-rappel" class="tbtn tbtn-act hidden" data-ctl="rappel">RAPPEL</button>
-  <button id="tb-detonate" class="tbtn tbtn-det hidden" data-ctl="detonate">DETONATE</button>
-  <button id="tb-pause" class="tbtn tbtn-top" data-ctl="pause">II</button>
-  <button id="tb-score" class="tbtn tbtn-top" data-ctl="score">TAB</button>
-  <button id="tb-hop" class="tbtn tbtn-feed hidden" data-ctl="hop">JUMP</button>
-  <button id="tb-scan" class="tbtn tbtn-feed hidden" data-ctl="ping">SCAN</button>
-  <button id="tb-switch" class="tbtn tbtn-feed hidden" data-ctl="cycle">SWITCH</button>
-  <button id="tb-feed-exit" class="tbtn tbtn-feed hidden" data-ctl="exitfeed">EXIT</button>
+  <button id="tb-fire" class="tbtn tbtn-fire" data-ctl="fire" aria-label="FIRE"><svg class="ticon" aria-hidden="true"><use href="#ic-fire"/></svg><span class="tlbl">FIRE</span></button>
+  <button id="tb-fire-l" class="tbtn tbtn-fire-l hidden" data-ctl="fireL" aria-label="FIRE"><svg class="ticon" aria-hidden="true"><use href="#ic-fire"/></svg><span class="tlbl">FIRE</span></button>
+  <button id="tb-ads" class="tbtn" data-ctl="ads" aria-label="ADS"><svg class="ticon" aria-hidden="true"><use href="#ic-ads"/></svg><span class="tlbl">ADS</span></button>
+  <button id="tb-crouch" class="tbtn" data-ctl="crouch" aria-label="CROUCH"><svg class="ticon" aria-hidden="true"><use href="#ic-crouch"/></svg><span class="tlbl">CROUCH</span></button>
+  <button id="tb-prone" class="tbtn" data-ctl="prone" aria-label="PRONE"><svg class="ticon" aria-hidden="true"><use href="#ic-prone"/></svg><span class="tlbl">PRONE</span></button>
+  <button id="tb-leanl" class="tbtn tbtn-lean" data-ctl="leanL" aria-label="LEAN LEFT"><svg class="ticon" aria-hidden="true"><use href="#ic-leanl"/></svg><span class="tlbl">LEAN LEFT</span></button>
+  <button id="tb-leanr" class="tbtn tbtn-lean" data-ctl="leanR" aria-label="LEAN RIGHT"><svg class="ticon" aria-hidden="true"><use href="#ic-leanr"/></svg><span class="tlbl">LEAN RIGHT</span></button>
+  <button id="tb-reload" class="tbtn" data-ctl="reload" aria-label="RELOAD"><svg class="ticon" aria-hidden="true"><use href="#ic-reload"/></svg><span class="tlbl">RELOAD</span></button>
+  <button id="tb-gadget" class="tbtn tbtn-gad" data-ctl="gadget" aria-label="GADGET"><svg class="ticon" aria-hidden="true"><use href="#ic-gadget"/></svg><span class="tlbl">GADGET</span></button>
+  <button id="tb-gadget2" class="tbtn" data-ctl="gadget2" aria-label="UTIL"><svg class="ticon" aria-hidden="true"><use href="#ic-util"/></svg><span class="tlbl">UTIL</span></button>
+  <button id="tb-drone" class="tbtn" data-ctl="drone" aria-label="DRONE"><svg class="ticon" aria-hidden="true"><use href="#ic-drone"/></svg><span class="tlbl">DRONE</span></button>
+  <button id="tb-cams" class="tbtn hidden" data-ctl="cams" aria-label="CAM"><svg class="ticon" aria-hidden="true"><use href="#ic-cam"/></svg><span class="tlbl">CAM</span></button>
+  <button id="tb-interact" class="tbtn tbtn-act" data-ctl="interact" aria-label="ACTION"><svg class="ticon" aria-hidden="true"><use href="#ic-action"/></svg><span class="tlbl tlbl-show">ACTION</span></button>
+  <button id="tb-swap" class="tbtn" data-ctl="swap" aria-label="SWAP"><svg class="ticon" aria-hidden="true"><use href="#ic-swap"/></svg><span class="tlbl">SWAP</span></button>
+  <button id="tb-ping" class="tbtn" data-ctl="ping" aria-label="PING"><svg class="ticon" aria-hidden="true"><use href="#ic-ping"/></svg><span class="tlbl">PING</span></button>
+  <button id="tb-rappel" class="tbtn tbtn-act hidden" data-ctl="rappel" aria-label="RAPPEL"><svg class="ticon" aria-hidden="true"><use href="#ic-rappel"/></svg><span class="tlbl tlbl-show">RAPPEL</span></button>
+  <button id="tb-detonate" class="tbtn tbtn-det hidden" data-ctl="detonate" aria-label="DETONATE"><svg class="ticon" aria-hidden="true"><use href="#ic-detonate"/></svg><span class="tlbl tlbl-show">DETONATE</span></button>
+  <button id="tb-pause" class="tbtn tbtn-top" data-ctl="pause" aria-label="PAUSE"><svg class="ticon" aria-hidden="true"><use href="#ic-pause"/></svg><span class="tlbl">PAUSE</span></button>
+  <button id="tb-score" class="tbtn tbtn-top" data-ctl="score" aria-label="TAB"><svg class="ticon" aria-hidden="true"><use href="#ic-score"/></svg><span class="tlbl">TAB</span></button>
+  <button id="tb-hop" class="tbtn tbtn-feed hidden" data-ctl="hop" aria-label="JUMP"><svg class="ticon" aria-hidden="true"><use href="#ic-jump"/></svg><span class="tlbl tlbl-show">JUMP</span></button>
+  <button id="tb-scan" class="tbtn tbtn-feed hidden" data-ctl="ping" aria-label="SCAN"><svg class="ticon" aria-hidden="true"><use href="#ic-scan"/></svg><span class="tlbl tlbl-show">SCAN</span></button>
+  <button id="tb-switch" class="tbtn tbtn-feed hidden" data-ctl="cycle" aria-label="SWITCH"><svg class="ticon" aria-hidden="true"><use href="#ic-switch"/></svg><span class="tlbl tlbl-show">SWITCH</span></button>
+  <button id="tb-feed-exit" class="tbtn tbtn-feed hidden" data-ctl="exitfeed" aria-label="EXIT"><svg class="ticon" aria-hidden="true"><use href="#ic-exit"/></svg><span class="tlbl tlbl-show">EXIT</span></button>
   <button id="tb-cycle-l" class="tbtn tbtn-feed feed-arrow left hidden" data-ctl="cycleback" aria-label="Previous feed">‹</button>
   <button id="tb-cycle-r" class="tbtn tbtn-feed feed-arrow right hidden" data-ctl="cycle" aria-label="Next feed">›</button>
 </div>
 
 <div id="menus">
-  <section id="scr-boot" class="screen">
+  <section id="scr-boot" class="screen fe-screen fe-boot">
     <img class="wordmark" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="400" height="117">
     <p class="tag">Hold the site. Break the line.</p>
-    <button class="btn primary" data-action="boot">TAP TO START</button>
-    <p class="fine">Add to Home Screen for fullscreen play. Landscape, iPhone or controller.</p>
+    <p class="tip" id="boot-tip">Landscape. iPhone or a controller. Tap to start.</p>
+    <button class="btn primary fe-play" data-fe="boot" data-action="boot" data-nav>TAP TO START</button>
+    <p class="fine">Add to Home Screen for fullscreen play.</p>
   </section>
 
-  <section id="scr-main" class="screen scene-over hidden">
-    <div class="brand">
-      <img class="wordmark sm" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="280" height="82">
-      <p class="tag">5v5 tactical attack &amp; defense</p>
+  <div id="op-showcase" class="op-showcase fe-showcase hidden" aria-label="Operator showcase"></div>
+  <div id="fe-scene-bg" class="fe-scene-bg hidden" aria-hidden="true"><i></i></div>
+
+  <section id="scr-main" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="settings" data-nav aria-label="Settings">⚙</button>
+        <div class="fe-level"><span class="pip" data-bind="level">8</span><b data-bind="callsign">WARRANT</b></div>
+      </div>
+      <div class="fe-top-right">
+        <div class="fe-cash">
+          <span><i class="dot marks"></i><b data-bind="marks">1,840</b></span>
+          <span><i class="dot chits"></i><b data-bind="chits">6</b></span>
+        </div>
+        <button class="fe-icon-btn" data-fe="mail" data-nav aria-label="Dispatches">✉</button>
+        <button class="fe-icon-btn" data-fe="friends" data-nav aria-label="Fireteam">☺</button>
+      </div>
     </div>
-    <div class="col">
-      <button class="btn primary" data-action="goto" data-arg="setup">PLAY</button>
-      <button class="btn" data-action="goto" data-arg="opselect">OPERATORS</button>
-      <button class="btn" data-action="goto" data-arg="settings">SETTINGS</button>
-      <button class="btn" data-action="goto" data-arg="controls">CONTROLS</button>
-      <button class="btn" data-action="goto" data-arg="credits">CREDITS</button>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" id="tab-missions" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" id="tab-free" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" id="tab-shop" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" id="tab-ops" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div class="fe-stats">
+      <div><small>MATCHES</small><b id="stat-matches">0</b></div>
+      <div><small>ROUNDS WON</small><b id="stat-rounds">0</b></div>
+      <div><small>WIN RATE</small><b id="stat-winrate">0%</b></div>
+      <div><small>MVP</small><b id="stat-mvp">0</b></div>
     </div>
-    <p class="fine" id="main-map">Map: Halcyon Press</p>
+    <div class="fe-play-block">
+      <div class="op">
+        <b id="main-op-name">FORGE</b>
+        <span id="main-op-level">LVL 8</span>
+        · <span id="main-op-load">C-16 CARBINE</span>
+      </div>
+      <div class="row">
+        <button class="btn ghost" data-fe="show" data-v="gunsmith" data-nav>LOADOUT</button>
+        <button class="btn fe-play" data-fe="play" data-nav>PLAY</button>
+      </div>
+    </div>
   </section>
 
-  <section id="scr-setup" class="screen hidden">
-    <h2>Match Setup</h2>
-    <div class="row wrap">
-      <div class="block">
-        <div class="slotlbl">SIDE</div>
-        <div class="chips" data-set="side">
-          <button class="chip on" data-action="set" data-k="side" data-v="attack">ATTACK</button>
-          <button class="chip" data-action="set" data-k="side" data-v="defend">DEFENSE</button>
+  <section id="scr-lobby" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <div class="fe-level"><span class="pip" data-bind="level">8</span><b>FIRETEAM</b></div>
+      </div>
+      <div class="fe-top-right">
+        <div class="fe-cash">
+          <span><i class="dot marks"></i><b data-bind="marks">1,840</b></span>
+          <span><i class="dot chits"></i><b data-bind="chits">6</b></span>
         </div>
       </div>
-      <div class="block">
-        <div class="slotlbl">BOT DIFFICULTY</div>
-        <div class="chips" data-set="difficulty">
-          <button class="chip" data-action="set" data-k="difficulty" data-v="recruit">RECRUIT</button>
-          <button class="chip" data-action="set" data-k="difficulty" data-v="regular">REGULAR</button>
-          <button class="chip on" data-action="set" data-k="difficulty" data-v="veteran">VETERAN</button>
-          <button class="chip" data-action="set" data-k="difficulty" data-v="elite">ELITE</button>
-        </div>
-      </div>
-      <div class="block">
-        <div class="slotlbl">ROUNDS</div>
-        <div class="chips" data-set="bestOf">
-          <button class="chip" data-action="set" data-k="bestOf" data-v="1">BO1</button>
-          <button class="chip on" data-action="set" data-k="bestOf" data-v="3">BO3</button>
-          <button class="chip" data-action="set" data-k="bestOf" data-v="5">BO5</button>
-        </div>
-      </div>
     </div>
-    <p class="fine">Halcyon Press · two floors + basement · two site pairs</p>
-    <div class="row">
-      <button class="btn" data-action="back">BACK</button>
-      <button class="btn primary" data-action="goto" data-arg="opselect">CHOOSE OPERATORS</button>
+    <aside id="lobby-missions" class="fe-lobby-left"></aside>
+    <div class="fe-lobby-center">
+      <div id="lobby-slots"></div>
+    </div>
+    <div class="fe-lobby-bottom">
+      <div>
+        <div id="lobby-side" class="row"></div>
+        <div id="lobby-diff" class="row" style="margin-top:6px"></div>
+        <div id="lobby-map" style="margin-top:6px"></div>
+        <div id="lobby-modes" style="margin-top:6px"></div>
+      </div>
+      <div id="lobby-start-wrap">
+        <div id="lobby-start-caption">BOMB RUSH · Best of 3</div>
+        <button class="btn fe-start" data-fe="start" data-nav>START</button>
+      </div>
     </div>
   </section>
 
-  <section id="scr-opselect" class="screen opscreen hidden">
-    <header class="ops-top">
-      <div class="side-toggle" role="tablist" aria-label="Faction">
-        <button class="chip on" data-action="set" data-k="side" data-v="attack" id="ops-side-atk">ASHLINE</button>
-        <button class="chip" data-action="set" data-k="side" data-v="defend" id="ops-side-def">HOLDFAST</button>
+  <section id="scr-matchmaking" class="fe-screen hidden">
+    <div class="fe-kicker">MATCHMAKING</div>
+    <div id="mm-timer">0:00</div>
+    <div id="mm-est">EST. WAIT  0:12</div>
+    <p id="mm-detail">Halcyon Press · BOMB RUSH · Best of 3</p>
+    <button class="btn ghost" data-fe="cancel-queue" data-nav>CANCEL</button>
+  </section>
+
+  <section id="scr-matchstart" class="fe-screen hidden">
+    <div class="ms-card">
+      <h2 id="ms-map">Halcyon Press</h2>
+      <div id="ms-mode">BOMB RUSH — Best of 3</div>
+      <div id="ms-score">0 — 0</div>
+      <div class="ms-teams">
+        <div id="ms-atk"></div>
+        <div id="ms-def"></div>
       </div>
-      <div id="ops-match-info" class="ops-match">Halcyon Press</div>
-      <button class="btn primary ops-confirm" data-action="deploy" id="ops-confirm">CONFIRM</button>
-    </header>
-    <div class="ops-body">
-      <div id="op-grid" class="op-grid"></div>
-      <div id="op-showcase" class="op-showcase" aria-label="Operator showcase"></div>
-      <aside id="op-detail" class="op-detail"></aside>
-    </div>
-    <p id="op-bio" class="op-bio"></p>
-    <div class="row ops-bottom">
-      <button class="btn" data-action="back">BACK</button>
-      <button class="btn" data-action="goto" data-arg="loadout">LOADOUT</button>
+      <div class="ms-load">
+        <div class="fe-bar"><i id="ms-fill"></i></div>
+        <p class="fine" id="ms-load">Loading match…</p>
+      </div>
     </div>
   </section>
 
-  <section id="scr-loadout" class="screen hidden">
-    <h2>Loadout</h2>
-    <div id="loadout-body" class="loadout"></div>
-    <div class="row">
-      <button class="btn" data-action="back">BACK</button>
-      <button class="btn primary" data-action="deploy">DEPLOY</button>
+  <section id="scr-operators" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">OPERATORS</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab on" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div class="fe-drawer fe-ops-left">
+      <div class="fe-side-toggle" role="tablist" aria-label="Faction">
+        <button class="chip on" id="ops-side-atk" data-fe="set-side" data-v="attack" data-nav>ASHLINE</button>
+        <button class="chip" id="ops-side-def" data-fe="set-side" data-v="defend" data-nav>HOLDFAST</button>
+      </div>
+      <div id="fe-op-grid"></div>
+    </div>
+    <aside class="fe-drawer fe-ops-right" id="fe-op-detail"></aside>
+  </section>
+
+  <section id="scr-gunsmith" class="fe-screen hidden">
+    <div class="gs-wrap">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <button class="btn ghost" data-fe="back" data-nav>BACK</button>
+        <h2 id="gs-title">GUNSMITH</h2>
+        <span></span>
+      </div>
+      <div id="gunsmith-body"></div>
     </div>
   </section>
 
-  <section id="scr-settings" class="screen hidden">
+  <section id="scr-missions" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">MISSIONS</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab on" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div id="missions-body"></div>
+  </section>
+
+  <section id="scr-rewards" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">FIELD PASS</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab on" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div id="rewards-body"></div>
+  </section>
+
+  <section id="scr-shop" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">SHOP</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab on" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div id="shop-body"></div>
+  </section>
+
+  <section id="scr-practice" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="back" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">PRACTICE</b>
+      </div>
+    </div>
+    <div id="practice-body"></div>
+    <div class="fe-end-actions" style="position:absolute;right:calc(12px + var(--sr));bottom:calc(10px + var(--sb))">
+      <button class="btn fe-start" data-fe="practice-go" data-nav>START</button>
+    </div>
+  </section>
+
+  <section id="scr-slam" class="fe-screen hidden">
+    <button class="fe-slam-hit" data-fe="advance-end" data-nav aria-label="Continue"></button>
+    <span id="end-slash" class="end-slash hidden" aria-hidden="true"></span>
+    <h1 id="slam-word">VICTORY</h1>
+    <p id="slam-sub">MATCH WIN</p>
+    <p id="slam-score">2 — 1</p>
+    <p class="fine">TAP TO CONTINUE</p>
+  </section>
+
+  <section id="scr-highlights" class="fe-screen hidden">
+    <h2 id="hl-title">MATCH WIN</h2>
+    <div id="hl-lineup"></div>
+    <div class="fe-end-actions">
+      <button class="btn primary" data-fe="advance-end" data-nav>CONTINUE</button>
+    </div>
+  </section>
+
+  <section id="scr-postscore" class="fe-screen hidden">
+    <div id="ps-meta">
+      <b id="ps-score">2 — 1</b>
+      <span>MVP <b id="ps-mvp">WARRANT</b></span>
+    </div>
+    <div id="postscore-body"></div>
+    <div class="fe-end-actions">
+      <button class="btn primary" data-fe="advance-end" data-nav>CONTINUE</button>
+    </div>
+  </section>
+
+  <section id="scr-progress" class="fe-screen hidden">
+    <div id="progress-body"></div>
+    <div class="fe-end-actions">
+      <button class="btn ghost" data-fe="to-lobby" data-nav>BACK TO LOBBY</button>
+      <button class="btn fe-start" data-fe="next-game" data-nav>NEXT GAME</button>
+    </div>
+  </section>
+
+<section id="scr-settings" class="screen hidden">
     <h2>Settings</h2>
     <div id="settings-body" class="settings-scroll"></div>
     <div class="row">
@@ -273,17 +459,6 @@ if ('serviceWorker' in navigator) {
     </div>
     <div class="row"><button class="btn primary" data-action="back">BACK</button></div>
   </section>
-
-  <section id="scr-end" class="screen hidden">
-    <div id="end-slash" class="hidden">DEFEAT</div>
-    <h2 id="end-title">MATCH OVER</h2>
-    <p class="tag" id="end-sub"></p>
-    <div id="end-board" class="scoreboard"></div>
-    <div class="row">
-      <button class="btn primary" data-action="goto" data-arg="setup">PLAY AGAIN</button>
-      <button class="btn" data-action="goto" data-arg="main">MENU</button>
-    </div>
-  </section>
 </div>
 
 <div id="loading" class="hidden">
@@ -292,6 +467,7 @@ if ('serviceWorker' in navigator) {
     <h2 id="load-title">Loading Halcyon Press</h2>
     <div class="load-bar"><i id="load-fill"></i></div>
     <p id="load-msg">Preparing map…</p>
+    <p id="load-tip" class="tip"></p>
   </div>
 </div>
 
@@ -347,6 +523,6 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
-<script type="module" src="js/main.js?v=iv-3.7.1"></script>
+<script type="module" src="js/main.js?v=iv-4.1.0"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createOperatorMesh, attachWeaponToHand } from '../models.js?v=iv-3.7.1';
-import { OperatorShowcase } from './OperatorShowcase.js?v=iv-3.7.1';
+import { createOperatorMesh, attachWeaponToHand } from '../models.js?v=iv-4.1.0';
+import { OperatorShowcase } from './OperatorShowcase.js?v=iv-4.1.0';
 
 const RED = 0xff2a2a;
 const BLUE = 0x2a6bff;
@@ -482,6 +482,8 @@ export class MenuScene {
     this._t += dt;
     if (this.mode === 'showcase') {
       this.showcase.tick(dt);
+    } else if (this.mode === 'flat') {
+      /* Front-end overlay screens: no street, no bodies. */
     } else {
       this._updateLights();
       this._updateDolly();
@@ -498,9 +500,12 @@ export class MenuScene {
     this.camera.aspect = w / Math.max(1, h);
     this.camera.updateProjectionMatrix();
     if (this.mode === 'showcase') {
-      r.setClearColor(0x07080c, 1);
+      r.setClearColor(0x12141a, 1);
       r.clear();
       this.showcase.render(r);
+    } else if (this.mode === 'flat') {
+      r.setClearColor(0x07080b, 1);
+      r.clear();
     } else {
       r.setScissorTest(false);
       r.setViewport(0, 0, canvas.width, canvas.height);
@@ -514,6 +519,9 @@ export class MenuScene {
   }
 
   info() {
+    if (this.mode === 'showcase' && this.showcase?._lastInfo) {
+      return { ...this.gfx.info(), ...this.showcase._lastInfo };
+    }
     return this.gfx.info();
   }
 

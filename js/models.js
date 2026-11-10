@@ -11,8 +11,8 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { buildHuman } from './characters.js?v=iv-3.7.1';
-import { HUMAN, SPEED } from './config.js?v=iv-3.7.1';
+import { buildHuman } from './characters.js?v=iv-4.1.0';
+import { HUMAN, SPEED } from './config.js?v=iv-4.1.0';
 
 export const PATHS = {
   reference: 'assets/models/reference/humanoid.glb',
@@ -43,7 +43,17 @@ export const CLIP_NAMES = [
   'select_idle', 'select_pick',
 ];
 const SOCKET_OP = ['socket_weapon', 'socket_hand_L', 'socket_gadget', 'socket_back'];
-const SOCKET_WPN = ['socket_muzzle', 'socket_optic', 'socket_grip', 'socket_underbarrel', 'ik_hand_L', 'ik_hand_R'];
+const SOCKET_WPN = ['socket_muzzle', 'socket_optic', 'socket_grip', 'socket_underbarrel', 'ik_hand_L', 'ik_hand_R', 'socket_mag'];
+/** Incoming authored empties from assist/v4-guns (and older socket_* names). */
+const SOCKET_ALIASES = {
+  socket_muzzle: ['socket_muzzle', 'muzzle'],
+  socket_optic: ['socket_optic', 'sight_anchor', 'optic_anchor'],
+  socket_grip: ['socket_grip', 'grip_anchor'],
+  socket_underbarrel: ['socket_underbarrel'],
+  ik_hand_R: ['ik_hand_R', 'grip_ik_r', 'hand_R', 'wrist_R'],
+  ik_hand_L: ['ik_hand_L', 'grip_ik_l', 'hand_L', 'wrist_L'],
+  socket_mag: ['socket_mag', 'mag_well', 'magazine_well'],
+};
 
 const LOWER_BONES = new Set([
   'root', 'hips', 'thigh_L', 'thigh_R', 'shin_L', 'shin_R',
@@ -194,15 +204,36 @@ async function loadGltfInstance(url) {
 
 function findNode(root, name) {
   if (!root || !name) return null;
-  return root.getObjectByName(name)
+  const hit = root.getObjectByName(name)
     || root.getObjectByName(name.toLowerCase())
-    || root.getObjectByName(name.toUpperCase())
-    || null;
+    || root.getObjectByName(name.toUpperCase());
+  if (hit) return hit;
+  const want = String(name).toLowerCase();
+  let found = null;
+  root.traverse?.((o) => {
+    if (found || !o.name) return;
+    if (o.name.toLowerCase() === want) found = o;
+  });
+  return found;
 }
 
 function collectSockets(root, names) {
   const out = {};
-  for (const n of names) out[n] = findNode(root, n);
+  for (const n of names) {
+    const aliases = SOCKET_ALIASES[n] || [n];
+    let found = null;
+    for (const a of aliases) {
+      found = findNode(root, a);
+      if (found) break;
+    }
+    out[n] = found;
+  }
+  // Expose the assist/v4-guns names alongside the legacy socket_* keys.
+  if (out.socket_optic) out.sight_anchor = out.socket_optic;
+  if (out.socket_muzzle) out.muzzle = out.socket_muzzle;
+  if (out.ik_hand_R) out.grip_ik_r = out.ik_hand_R;
+  if (out.ik_hand_L) out.grip_ik_l = out.ik_hand_L;
+  if (out.socket_mag) out.mag_well = out.socket_mag;
   return out;
 }
 
@@ -1421,11 +1452,13 @@ export const LENS_OFFSET = {
 };
 /** Eye relief (metres) from the lens to the viewmodel camera. */
 export const EYE_RELIEF = {
-  iron: 0.08,
-  red: 0.08,
-  holo: 0.09,
-  scope2: 0.09,
-  scope4: 0.10,
+  // Chosen so a ~0.011–0.013 m optic ring fills ~25–35% of 844-wide
+  // screen at the ADS viewmodel FOV (red/holo ~40°).
+  iron: 0.07,
+  red: 0.055,
+  holo: 0.058,
+  scope2: 0.065,
+  scope4: 0.075,
 };
 /** Radians of downward pitch around the lens so the receiver leaves the frame. */
 export const ADS_PITCH = {
@@ -1443,13 +1476,12 @@ function reticleTexture(kind, variant = 'core') {
   g.clearRect(0, 0, 128, 128);
   const cx = 64, cy = 64;
   if (variant === 'bloom') {
-    const grd = g.createRadialGradient(cx, cy, 0, cx, cy, 56);
-    grd.addColorStop(0, 'rgba(255, 220, 200, 0.95)');
-    grd.addColorStop(0.18, 'rgba(255, 50, 40, 0.85)');
-    grd.addColorStop(0.45, 'rgba(255, 24, 16, 0.35)');
+    const grd = g.createRadialGradient(cx, cy, 0, cx, cy, 36);
+    grd.addColorStop(0, 'rgba(255, 240, 230, 0.55)');
+    grd.addColorStop(0.45, 'rgba(255, 50, 40, 0.22)');
     grd.addColorStop(1, 'rgba(255, 16, 8, 0)');
     g.fillStyle = grd;
-    g.beginPath(); g.arc(cx, cy, 56, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(cx, cy, 36, 0, Math.PI * 2); g.fill();
   } else if (kind === 'holo') {
     g.strokeStyle = 'rgba(255, 80, 70, 1)';
     g.lineWidth = 3.5;
@@ -1471,12 +1503,11 @@ function reticleTexture(kind, variant = 'core') {
     g.fillStyle = 'rgba(255, 220, 90, 1)';
     g.beginPath(); g.arc(64, 64, 3.4, 0, Math.PI * 2); g.fill();
   } else {
-    const grd = g.createRadialGradient(cx, cy, 0, cx, cy, 16);
-    grd.addColorStop(0, 'rgba(255, 255, 245, 1)');
-    grd.addColorStop(0.22, 'rgba(255, 90, 70, 1)');
-    grd.addColorStop(0.55, 'rgba(255, 28, 20, 0.95)');
-    grd.addColorStop(1, 'rgba(255, 20, 12, 0)');
-    g.fillStyle = grd;
+    // Disc fills enough of the 128px atlas that a 0.0032 m plane
+    // reads as a ~6–8 CSS-px crisp dot at 0.055 m relief, not a sub-pixel speck.
+    g.fillStyle = 'rgba(255, 255, 245, 1)';
+    g.beginPath(); g.arc(cx, cy, 22, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255, 32, 24, 1)';
     g.beginPath(); g.arc(cx, cy, 16, 0, Math.PI * 2); g.fill();
   }
   const tex = new THREE.CanvasTexture(c);
@@ -1486,14 +1517,14 @@ function reticleTexture(kind, variant = 'core') {
 }
 
 function makeReticle(kind = 'red') {
-  const size = kind === 'holo' ? 0.013 : (kind === 'scope2' || kind === 'scope4' ? 0.016 : (kind === 'iron' ? 0.0024 : 0.007));
+  const size = kind === 'holo' ? 0.006 : (kind === 'scope2' || kind === 'scope4' ? 0.007 : (kind === 'iron' ? 0.0024 : 0.0032));
   const g = new THREE.Group();
   g.name = 'reticle';
   g.frustumCulled = false;
   if (kind !== 'iron') {
     // Dark disc so the additive glow stays readable on a bright wall.
     const halo = new THREE.Mesh(
-      new THREE.CircleGeometry(size * 0.55, 24),
+      new THREE.CircleGeometry(size * 0.28, 20),
       new THREE.MeshBasicMaterial({
         color: 0x1a0000,
         transparent: true,
@@ -1507,7 +1538,7 @@ function makeReticle(kind = 'red') {
     halo.renderOrder = 8;
     halo.name = 'reticle-halo';
     const bloom = new THREE.Mesh(
-      new THREE.PlaneGeometry(size * 2.8, size * 2.8),
+      new THREE.PlaneGeometry(size * 1.6, size * 1.6),
       new THREE.MeshBasicMaterial({
         map: reticleTexture(kind, 'bloom'),
         transparent: true,
@@ -1581,19 +1612,61 @@ function makeIronSight() {
   return g;
 }
 
+function makeLensVignette(radius) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  const grd = ctx.createRadialGradient(64, 64, 36, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(0,0,0,0)');
+  grd.addColorStop(0.62, 'rgba(0,0,0,0.12)');
+  grd.addColorStop(1, 'rgba(0,0,0,0.72)');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(64, 64, 64, 0, Math.PI * 2); ctx.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 32),
+    new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
+      toneMapped: false,
+    }),
+  );
+  mesh.name = 'lens-vignette';
+  mesh.renderOrder = 7.5;
+  return mesh;
+}
+
 function makeOpticHousing(kind) {
   const g = new THREE.Group();
   g.name = 'optic-housing';
-  const dark = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.4, metalness: 0.55 });
-  const r = kind === 'holo' ? 0.016 : (kind === 'scope2' || kind === 'scope4' ? 0.013 : 0.012);
-  const len = kind === 'scope4' ? 0.09 : (kind === 'scope2' ? 0.07 : (kind === 'holo' ? 0.028 : 0.036));
-  const tube = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.002, r + 0.002, len, 20, 1, true), dark);
+  // Matte dark-grey tube, not a glossy black torus. Wall ~2% of screen
+  // per side at the ADS eye relief (~4% across the rim pair).
+  const matte = new THREE.MeshStandardMaterial({
+    color: 0x3a3c3e, roughness: 0.9, metalness: 0.1,
+  });
+  const innerMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1b1d, roughness: 0.95, metalness: 0.04, side: THREE.BackSide,
+  });
+  const rIn = kind === 'holo' ? 0.015 : (kind === 'scope2' || kind === 'scope4' ? 0.012 : 0.011);
+  const wall = 0.0018;
+  const rOut = rIn + wall;
+  const len = kind === 'scope4' ? 0.09 : (kind === 'scope2' ? 0.07 : (kind === 'holo' ? 0.028 : 0.032));
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(rOut, rOut, len, 28, 1, true), matte);
   tube.rotation.x = Math.PI / 2;
-  const ringRear = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0018, 8, 20), dark);
-  ringRear.position.z = len * 0.42;
-  const ringFront = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0016, 8, 20), dark);
-  ringFront.position.z = -len * 0.42;
-  g.add(tube, ringRear, ringFront);
+  tube.position.z = -len * 0.5;
+  const bore = new THREE.Mesh(new THREE.CylinderGeometry(rIn, rIn, len, 28, 1, true), innerMat);
+  bore.rotation.x = Math.PI / 2;
+  bore.position.z = -len * 0.5;
+  const rim = new THREE.Mesh(new THREE.RingGeometry(rIn, rOut, 28), matte);
+  rim.position.z = 0;
+  const rimFront = rim.clone();
+  rimFront.position.z = -len;
+  const vignette = makeLensVignette(rIn);
+  vignette.position.z = 0.0004;
+  g.add(tube, bore, rim, rimFront, vignette);
   return g;
 }
 
@@ -1623,7 +1696,7 @@ export async function createWeaponViewmodel(weapon = {}) {
     root.userData.authored = true;
     root.userData.weaponId = id;
 
-    const opticSock = sockets.socket_optic;
+    const opticSock = sockets.socket_optic || sockets.sight_anchor;
     const optic = new THREE.Group();
     optic.name = 'optic';
     optic.frustumCulled = false;
@@ -1658,9 +1731,10 @@ export async function createWeaponViewmodel(weapon = {}) {
       off[0] = (min.x + box.max.x) / 2;
       off[1] = min.y + size.y * 0.72;
       off[2] = (min.z + box.max.z) / 2;
-      const rearBack = Math.max(0, box.max.z - off[2]);
-      relief = Math.max(relief, rearBack + 0.045);
-      clipDistance = Math.max(0.024, relief - rearBack - 0.008);
+      // ADS hides the authored optic and shows the procedural housing,
+      // so keep eye relief at EYE_RELIEF (25–35% ring) rather than
+      // padding for the (hidden) authored AABB.
+      clipDistance = Math.max(0.02, relief * 0.28);
     }
     if (pistolIrons) {
       model.updateMatrixWorld(true);
@@ -1668,12 +1742,17 @@ export async function createWeaponViewmodel(weapon = {}) {
       const worldBox = new THREE.Box3().setFromObject(model);
       const box = worldBox.clone().applyMatrix4(optic.matrixWorld.clone().invert());
       off[0] = (box.min.x + box.max.x) / 2;
-      off[1] = box.max.y + 0.0015;
+      off[1] = box.max.y + 0.004;
       // Rear third of the slide — look over the rear 3-dot notch toward the front sight.
       off[2] = box.min.z * 0.25 + box.max.z * 0.75;
-      relief = 0.06;
-      clipDistance = 0.02;
+      // Pistols need more relief than a tube optic or the slide fills the frame.
+      relief = Math.max(0.22, EYE_RELIEF.iron);
+      clipDistance = 0.018;
     }
+
+    const minRelief = EYE_RELIEF[kind] ?? 0.14;
+    relief = Math.max(relief, minRelief);
+    clipDistance = Math.min(clipDistance, Math.max(0.02, relief * 0.28));
 
     const sight = new THREE.Group();
     sight.name = 'sight';
@@ -1884,23 +1963,127 @@ export async function attachWeaponToHand(vis, weapon, opts = {}) {
   return wpn;
 }
 
-function makeGlove(side = 1) {
-  const leather = new THREE.MeshStandardMaterial({ color: 0x1c1a16, roughness: 0.7, metalness: 0.08 });
-  const sleeve = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.78, metalness: 0.04 });
+function makeFinger(mat, len, thick) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(thick, thick * 0.85, len), mat);
+  m.position.z = -len * 0.5;
+  m.castShadow = false;
+  m.frustumCulled = false;
+  return m;
+}
+
+function makeHand(side, leather) {
+  // side > 0 is the right hand. Local −Z is fingers-forward, +Y is the back of the hand.
+  const g = new THREE.Group();
+  g.name = side > 0 ? 'hand_R' : 'hand_L';
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.018, 0.052), leather);
+  palm.position.set(0, 0, -0.004);
+  palm.frustumCulled = false;
+  g.add(palm);
+  const knuck = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.014, 0.014), leather);
+  knuck.position.set(0, 0.004, -0.028);
+  knuck.frustumCulled = false;
+  g.add(knuck);
+  const lens = [0.026, 0.031, 0.029, 0.023];
+  const thicks = [0.0072, 0.008, 0.0076, 0.0064];
+  for (let i = 0; i < 4; i++) {
+    const f = makeFinger(leather, lens[i], thicks[i]);
+    f.position.set(side * (-0.013 + i * 0.0088), -0.001, -0.028);
+    f.rotation.x = 0.42;
+    g.add(f);
+    const tip = makeFinger(leather, lens[i] * 0.42, thicks[i] * 0.9);
+    tip.position.set(0, -0.002, -lens[i] * 0.55);
+    tip.rotation.x = 0.55;
+    f.add(tip);
+  }
+  const thumb = makeFinger(leather, 0.026, 0.0085);
+  thumb.position.set(side * -0.02, 0.006, -0.006);
+  thumb.rotation.set(0.35, side * 0.85, side * 0.55);
+  g.add(thumb);
+  const t2 = makeFinger(leather, 0.016, 0.0075);
+  t2.position.set(0, 0, -0.018);
+  t2.rotation.y = side * 0.35;
+  thumb.add(t2);
+  return g;
+}
+
+function makeGlove(side) {
+  const leather = new THREE.MeshStandardMaterial({
+    color: 0x8a7352, roughness: 0.72, metalness: 0.08,
+  });
+  const cuffMat = new THREE.MeshStandardMaterial({
+    color: 0x2a2620, roughness: 0.72, metalness: 0.08,
+  });
+  const sleeve = new THREE.MeshStandardMaterial({
+    color: 0x2c2e28, roughness: 0.84, metalness: 0.04,
+  });
   const g = new THREE.Group();
   g.name = side > 0 ? 'arm_R' : 'arm_L';
-  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.035, 0.09), leather);
-  hand.position.set(0, -0.01, 0.01);
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.028, 0.04), leather);
-  palm.position.set(0, -0.008, -0.04);
-  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.28, 8), sleeve);
+  const hand = makeHand(side, leather);
+  // Right hand wraps the pistol grip (palm inward, fingers down around the grip).
+  // Left hand C-clamps the handguard (palm up-left, fingers over the rail).
+  if (side > 0) hand.rotation.set(1.15, 0.15, 1.45);
+  else hand.rotation.set(0.35, 0.05, -0.35);
+  g.add(hand);
+  const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.028, 10), cuffMat);
+  wrist.rotation.x = Math.PI / 2;
+  wrist.position.set(0, 0.0, 0.028);
+  wrist.frustumCulled = false;
+  g.add(wrist);
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.26, 10), sleeve);
   arm.rotation.x = Math.PI / 2;
-  arm.position.set(0, -0.01, 0.20);
-  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.04, 8), leather);
+  arm.position.set(side * 0.01, 0.01, 0.16);
+  arm.frustumCulled = false;
+  g.add(arm);
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.036, 10), cuffMat);
   cuff.rotation.x = Math.PI / 2;
-  cuff.position.set(0, -0.01, 0.07);
-  g.add(hand, palm, arm, cuff);
+  cuff.position.set(side * 0.006, 0.006, 0.06);
+  cuff.frustumCulled = false;
+  g.add(cuff);
+  g.traverse(o => { o.frustumCulled = false; });
   return g;
+}
+
+function makeDefuserDevice() {
+  const root = new THREE.Group();
+  root.name = 'defuser-device';
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2c28, roughness: 0.55, metalness: 0.4 });
+  const accMat = new THREE.MeshStandardMaterial({ color: 0xc67636, roughness: 0.45, metalness: 0.5 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.6, metalness: 0.3 });
+  const led = new THREE.MeshStandardMaterial({ color: 0x44ff88, emissive: 0x22aa44, emissiveIntensity: 1.4, toneMapped: false });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.045, 0.14), bodyMat);
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.08, 8), dark);
+  ant.position.set(0.03, 0.055, -0.04);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.05), accMat);
+  cap.position.set(0, 0.028, 0.02);
+  const light = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 8), led);
+  light.position.set(-0.028, 0.028, 0.05);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.03, 0.08), dark);
+  handle.position.set(0, -0.03, 0.01);
+  root.add(body, ant, cap, light, handle);
+  root.traverse(o => { o.frustumCulled = false; });
+  return root;
+}
+
+export function createDefuserViewmodel() {
+  const root = new THREE.Group();
+  root.name = 'vm-defuser';
+  root.frustumCulled = false;
+  const device = makeDefuserDevice();
+  device.position.set(0.02, -0.06, -0.28);
+  device.rotation.set(0.15, 0.35, 0.05);
+  root.add(device);
+  const rArm = makeGlove(1);
+  rArm.position.set(0.05, -0.09, -0.22);
+  rArm.rotation.set(0.4, 0.2, 0.3);
+  const lArm = makeGlove(-1);
+  lArm.position.set(-0.04, -0.08, -0.24);
+  lArm.rotation.set(0.35, -0.15, -0.25);
+  root.add(rArm, lArm);
+  root.userData.arms = { l: lArm, r: rArm };
+  root.userData.device = device;
+  root.userData.authored = false;
+  root.userData.plant = true;
+  return root;
 }
 
 async function loadViewmodelArms() {
@@ -1910,6 +2093,7 @@ async function loadViewmodelArms() {
       const arms = cloneGltfScene(gltf);
       hardenMaterials(arms, false);
       arms.name = 'vm-arms';
+      arms.traverse(o => { o.frustumCulled = false; });
       return arms;
     } catch (e) {
       console.warn('viewmodel arms glb failed', e);
@@ -1934,6 +2118,7 @@ export async function createFirstPersonViewmodel(weapon = {}) {
   root.userData.optic = wpn.userData.optic;
   root.userData.sight = wpn.userData.sight;
   root.userData.opticSocket = wpn.userData.opticSocket || wpn.userData.sockets?.socket_optic;
+  root.userData.sockets = wpn.userData.sockets;
   root.userData.eyeRelief = wpn.userData.eyeRelief;
   root.userData.adsPitch = wpn.userData.adsPitch;
   root.userData.clipDistance = wpn.userData.clipDistance;
@@ -1949,18 +2134,27 @@ export async function createFirstPersonViewmodel(weapon = {}) {
   const sockets = wpn.userData.sockets || {};
   const authoredArms = await loadViewmodelArms();
   if (authoredArms) {
+    // Snap authored arm wrist bones to the weapon IK sockets when present.
+    const rBone = findNode(authoredArms, 'ik_hand_R') || findNode(authoredArms, 'grip_ik_r') || findNode(authoredArms, 'hand_R') || findNode(authoredArms, 'wrist_R');
+    const lBone = findNode(authoredArms, 'ik_hand_L') || findNode(authoredArms, 'grip_ik_l') || findNode(authoredArms, 'hand_L') || findNode(authoredArms, 'wrist_L');
     root.add(authoredArms);
     root.userData.arms = authoredArms;
+    authoredArms.userData.rBone = rBone;
+    authoredArms.userData.lBone = lBone;
   } else {
-    const rHold = sockets.ik_hand_R || wpn;
-    const lHold = sockets.ik_hand_L || wpn;
+    const rHold = sockets.ik_hand_R || sockets.grip_ik_r || wpn;
+    const lHold = sockets.ik_hand_L || sockets.grip_ik_l || wpn;
     const rArm = makeGlove(1);
     const lArm = makeGlove(-1);
     rHold.add(rArm);
     lHold.add(lArm);
-    // If the IK sockets are missing, park the arms at a grip-ish offset.
     if (!sockets.ik_hand_R) rArm.position.set(0.03, -0.04, 0.02);
     if (!sockets.ik_hand_L) lArm.position.set(-0.04, -0.02, -0.12);
+    // Nudge the palms slightly off the mesh so they read as a grip, not a clip.
+    if (sockets.ik_hand_R) rArm.position.set(0.016, -0.012, 0.008);
+    if (sockets.ik_hand_L) lArm.position.set(-0.014, 0.010, 0.004);
+    rArm.scale.setScalar(1.12);
+    lArm.scale.setScalar(1.12);
     root.userData.arms = { l: lArm, r: rArm };
   }
   return root;
