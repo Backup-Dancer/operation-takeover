@@ -1,31 +1,31 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.2';
-import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.2';
-import { Gfx } from './gfx.js?v=iv-4.1.2';
-import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.2';
-import { mulberry32 } from './math.js?v=iv-4.1.2';
-import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.2';
-import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat, freezeMatchEnd } from './match/stats.js?v=iv-4.1.2';
-import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.2';
-import { pickSafeAttackSpawn, inBuilding, isSpawnProtected, SPAWN_PROTECT_SEC, hasLOS } from './match/vision.js?v=iv-4.1.2';
-import { Input } from './input.js?v=iv-4.1.2';
-import { UI } from './ui.js?v=iv-4.1.2';
-import { World } from './world.js?v=iv-4.1.2';
-import { Nav } from './nav.js?v=iv-4.1.2';
-import { getOp } from './operators.js?v=iv-4.1.2';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.2';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.2';
-import { Gadgets } from './gadgets.js?v=iv-4.1.2';
-import * as combat from './combat.js?v=iv-4.1.2';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.2';
-import { DroneSys } from './drone.js?v=iv-4.1.2';
-import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.2';
-import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.2';
-import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.2';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.2';
-import { buildHuman, measure } from './characters.js?v=iv-4.1.2';
-import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.2';
-import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.2';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.2-t2';
+import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.2-t2';
+import { Gfx } from './gfx.js?v=iv-4.1.2-t2';
+import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.2-t2';
+import { mulberry32 } from './math.js?v=iv-4.1.2-t2';
+import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.2-t2';
+import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat, freezeMatchEnd } from './match/stats.js?v=iv-4.1.2-t2';
+import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.2-t2';
+import { pickSafeAttackSpawn, inBuilding, isSpawnProtected, SPAWN_PROTECT_SEC, hasLOS } from './match/vision.js?v=iv-4.1.2-t2';
+import { Input } from './input.js?v=iv-4.1.2-t2';
+import { UI } from './ui.js?v=iv-4.1.2-t2';
+import { World } from './world.js?v=iv-4.1.2-t2';
+import { Nav } from './nav.js?v=iv-4.1.2-t2';
+import { getOp } from './operators.js?v=iv-4.1.2-t2';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.2-t2';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.2-t2';
+import { Gadgets } from './gadgets.js?v=iv-4.1.2-t2';
+import * as combat from './combat.js?v=iv-4.1.2-t2';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.2-t2';
+import { DroneSys } from './drone.js?v=iv-4.1.2-t2';
+import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.2-t2';
+import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.2-t2';
+import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.2-t2';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.2-t2';
+import { buildHuman, measure } from './characters.js?v=iv-4.1.2-t2';
+import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.2-t2';
+import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.2-t2';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }
@@ -293,6 +293,11 @@ export class Game {
     this.hideViewmodel = false;
     this.viewMode = 'fp';
     if (this.vm) this.vm.visible = false;
+    // Quit mid-plant: the parked weapon viewmodel is never restored.
+    if (this._weaponVmBackup && this._weaponVmBackup !== this.gfx?.vmRoot) {
+      this.gfx?.disposeViewmodel?.(this._weaponVmBackup, this.gfx.vmRoot);
+    }
+    this._weaponVmBackup = null;
     resetWeaponInstances();
     document.getElementById('hud').classList.add('hidden');
     document.getElementById('touch').classList.add('hidden');
@@ -544,6 +549,7 @@ export class Game {
     try { doSetStance(this, 1); } catch (e) {}
     this.player.stanceT = 1;
     if (!this._weaponVmBackup) this._weaponVmBackup = this.vm;
+    if (this._weaponVmBackup?.userData) this._weaponVmBackup.userData._vmKeep = true;
     const vis = createDefuserViewmodel();
     this.gfx.setViewmodel(vis);
     this.vm = vis;
@@ -564,6 +570,7 @@ export class Game {
     }
     setProgressRing(0);
     if (this._weaponVmBackup) {
+      if (this._weaponVmBackup.userData) this._weaponVmBackup.userData._vmKeep = false;
       this.gfx.setViewmodel(this._weaponVmBackup);
       this.vm = this._weaponVmBackup;
       this._weaponVmBackup = null;
@@ -576,6 +583,7 @@ export class Game {
     this._plantingKind = null;
     setProgressRing(0);
     if (this._weaponVmBackup) {
+      if (this._weaponVmBackup.userData) this._weaponVmBackup.userData._vmKeep = false;
       this.gfx.setViewmodel(this._weaponVmBackup);
       this.vm = this._weaponVmBackup;
       this._weaponVmBackup = null;

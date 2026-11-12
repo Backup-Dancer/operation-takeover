@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ROOMS, BOUNDS, floorY } from './map.js?v=iv-4.1.2';
+import { ROOMS, BOUNDS, floorY } from './map.js?v=iv-4.1.2-t2';
 
 /** Print-shop furnishings. Repeated pieces go through world.addInstance. */
 export function furnish(world, gfx) {

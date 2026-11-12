@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { QUALITY, BUDGET } from './config.js?v=iv-4.1.2';
+import { QUALITY, BUDGET } from './config.js?v=iv-4.1.2-t2';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 
 const TEX_MAP = {
@@ -479,11 +479,33 @@ export class Gfx {
 
   setViewmodel(root) {
     this.initViewmodel();
-    if (this.vmRoot && this.vmRoot.parent) this.vmRoot.parent.remove(this.vmRoot);
+    const prev = this.vmRoot;
+    if (prev && prev.parent) prev.parent.remove(prev);
+    // Free the outgoing viewmodel's per-instance GPU geometry/materials
+    // (each weapon build clones its geometry). A root flagged _vmKeep
+    // (the weapon parked during plant/defuse) is restored later, so keep it.
+    if (prev && prev !== root && !prev.userData?._vmKeep) this.disposeViewmodel(prev, root);
     // Never parent the viewmodel to the world camera.
     this._prepVmMaterials(root);
     this.vmScene.add(root);
     this.vmRoot = root;
+  }
+
+  /** Dispose geometries and materials under `root` that `keep` does not
+   *  use. Textures are left alone: they are shared with the loader cache. */
+  disposeViewmodel(root, keep = null) {
+    if (!root) return;
+    const used = new Set();
+    keep?.traverse?.((o) => {
+      if (o.geometry) used.add(o.geometry);
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) if (m) used.add(m);
+    });
+    root.traverse((o) => {
+      if (o.geometry && !used.has(o.geometry)) { try { o.geometry.dispose(); } catch {} }
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of ms) if (m && !used.has(m)) { try { m.dispose(); } catch {} }
+    });
   }
 
   setVmClip(distance = 0) {

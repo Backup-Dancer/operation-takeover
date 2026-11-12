@@ -2,7 +2,7 @@
  * at stage time. Scope is the directory this file is served from (./),
  * which is /operation-takeover/ on a project site. Network-first for
  * navigations and scripts so a new cache-bust is not sticky. */
-const BUILD = 'iv-4.1.2';
+const BUILD = 'iv-4.1.2-t2';
 const CACHE = 'takeover-' + BUILD;
 
 self.addEventListener('install', (event) => {

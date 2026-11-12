@@ -1,17 +1,17 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from '../operators.js?v=iv-4.1.2';
-import { loadLore, loreFor, loreUnits } from '../menu/lore.js?v=iv-4.1.2';
-import { cardUrl, hasPortrait, loadBust } from '../menu/portraits.js?v=iv-4.1.2';
-import { WEAPONS, UTIL, makeLoadout } from '../weapons.js?v=iv-4.1.2';
-import { saveSettings } from '../settings.js?v=iv-4.1.2';
-import { BUILD, TITLE, MAP_NAME } from '../config.js?v=iv-4.1.2';
-import { playLoop, playStinger, stopMusic, unlock as unlockAudio } from '../audio.js?v=iv-4.1.2';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from '../operators.js?v=iv-4.1.2-t2';
+import { loadLore, loreFor, loreUnits } from '../menu/lore.js?v=iv-4.1.2-t2';
+import { cardUrl, hasPortrait, loadBust } from '../menu/portraits.js?v=iv-4.1.2-t2';
+import { WEAPONS, UTIL, makeLoadout } from '../weapons.js?v=iv-4.1.2-t2';
+import { saveSettings } from '../settings.js?v=iv-4.1.2-t2';
+import { BUILD, TITLE, MAP_NAME } from '../config.js?v=iv-4.1.2-t2';
+import { playLoop, playStinger, stopMusic, unlock as unlockAudio } from '../audio.js?v=iv-4.1.2-t2';
 import {
   MAPS, MODES, TIPS, GUNSMITH_SLOTS, GUNSMITH_OPTS,
   mapById, modeById, mapArtUrl, FIRETEAM_BOTS, RIVAL_BOTS,
 } from './data.js';
-import { loadProfile, saveProfile, winRate, challengeState, applyMatchRewards, INDUCTION, FIELD_PASS } from './profile.js?v=iv-4.1.2';
-import { startMatch, bindHooks, mockMatchResult, peekMatchApi, matchSnapshot, snapshotFromApi, isCompleteSnapshot, richerSnapshot, isStrictlyRicher } from './match-adapter.js?v=iv-4.1.2';
-import { GamepadNav } from './nav.js?v=iv-4.1.2';
+import { loadProfile, saveProfile, winRate, challengeState, applyMatchRewards, INDUCTION, FIELD_PASS } from './profile.js?v=iv-4.1.2-t2';
+import { startMatch, bindHooks, mockMatchResult, peekMatchApi, matchSnapshot, snapshotFromApi, isCompleteSnapshot, richerSnapshot, isStrictlyRicher } from './match-adapter.js?v=iv-4.1.2-t2';
+import { GamepadNav } from './nav.js?v=iv-4.1.2-t2';
 
 const MENU_LOOP = 'main_menu_loop';
 const QUEUE_LOOP = 'matchmaking_loop';

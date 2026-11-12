@@ -1,4 +1,4 @@
-import { ROOMS, STAIRS, HATCHES, WINDOWS, FLOORS, BOUNDS, floorY } from './map.js?v=iv-4.1.2';
+import { ROOMS, STAIRS, HATCHES, WINDOWS, FLOORS, BOUNDS, floorY } from './map.js?v=iv-4.1.2-t2';
 
 const CS = 0.6;
 

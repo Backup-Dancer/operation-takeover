@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-4.1.2';
-import { getOp } from '../operators.js?v=iv-4.1.2';
-import { loreFor } from './lore.js?v=iv-4.1.2';
-import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-4.1.2';
+import { createOperatorMesh, attachWeaponToHand, PATHS } from '../models.js?v=iv-4.1.2-t2';
+import { getOp } from '../operators.js?v=iv-4.1.2-t2';
+import { loreFor } from './lore.js?v=iv-4.1.2-t2';
+import { hasPortrait, loadBust, bustUrl } from './portraits.js?v=iv-4.1.2-t2';
 
 /**
  * Hero operator showcase in a dressed hangar / staging bay.

@@ -17,8 +17,8 @@
  * and wraps _endRound / quit so screens stay testable. No in-match edits.
  * Re-check with: git show wip/v4-gameplay:docs/MATCH-API.md
  */
-import { mapById, modeById, FIRETEAM_BOTS, RIVAL_BOTS } from './data.js?v=iv-4.1.2';
-import { getOp, listSide } from '../operators.js?v=iv-4.1.2';
+import { mapById, modeById, FIRETEAM_BOTS, RIVAL_BOTS } from './data.js?v=iv-4.1.2-t2';
+import { getOp, listSide } from '../operators.js?v=iv-4.1.2-t2';
 
 const CHECK_MS = 15000;
 let _apiText = null;

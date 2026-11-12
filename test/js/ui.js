@@ -1,11 +1,11 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-4.1.2';
-import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-4.1.2';
-import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-4.1.2';
-import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-4.1.2';
-import { saveSettings, DEFAULTS } from './settings.js?v=iv-4.1.2';
-import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-4.1.2';
-import { QUALITY, TITLE, BUILD } from './config.js?v=iv-4.1.2';
-import { showInputTest } from './input-test.js?v=iv-4.1.2';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-4.1.2-t2';
+import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-4.1.2-t2';
+import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-4.1.2-t2';
+import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-4.1.2-t2';
+import { saveSettings, DEFAULTS } from './settings.js?v=iv-4.1.2-t2';
+import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-4.1.2-t2';
+import { QUALITY, TITLE, BUILD } from './config.js?v=iv-4.1.2-t2';
+import { showInputTest } from './input-test.js?v=iv-4.1.2-t2';
 
 export class UI {
   constructor(game) {

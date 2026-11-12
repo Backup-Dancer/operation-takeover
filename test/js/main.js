@@ -1,7 +1,7 @@
-import { BUILD, TITLE } from './version.js?v=iv-4.1.2';
-import { Game } from './game.js?v=iv-4.1.2';
-import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.2';
-import { mountInputTest, shouldOpenInputTest } from './input-test.js?v=iv-4.1.2';
+import { BUILD, TITLE } from './version.js?v=iv-4.1.2-t2';
+import { Game } from './game.js?v=iv-4.1.2-t2';
+import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.2-t2';
+import { mountInputTest, shouldOpenInputTest } from './input-test.js?v=iv-4.1.2-t2';
 
 const meta = document.querySelector('meta[name=build]');
 if (meta && meta.content !== BUILD && !new URLSearchParams(location.search).get('v')) {

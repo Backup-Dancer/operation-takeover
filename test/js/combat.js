@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-4.1.2';
-import { sfx, gunfireAt } from './audio.js?v=iv-4.1.2';
-import { bloomSpread, nextRecoil, computeDamage, hitPartFromOffset, markAimAssistNear } from './match/combat.js?v=iv-4.1.2';
-import { hasLOS } from './match/vision.js?v=iv-4.1.2';
+import { AIM_ASSIST, CANCEL_READY, SPRINT_OUT_FIRE } from './config.js?v=iv-4.1.2-t2';
+import { sfx, gunfireAt } from './audio.js?v=iv-4.1.2-t2';
+import { bloomSpread, nextRecoil, computeDamage, hitPartFromOffset, markAimAssistNear } from './match/combat.js?v=iv-4.1.2-t2';
+import { hasLOS } from './match/vision.js?v=iv-4.1.2-t2';
 
 export function isHostile(game, t) {
   if (!t) return false;

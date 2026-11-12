@@ -1,7 +1,7 @@
 /** On-device input check: open with ?inputtest=1 or Settings → Controls Test. */
 
-import { saveSettings, setAxisTweak, DEFAULTS } from './settings.js?v=iv-4.1.2';
-import { screenOrientationAngle } from './input.js?v=iv-4.1.2';
+import { saveSettings, setAxisTweak, DEFAULTS } from './settings.js?v=iv-4.1.2-t2';
+import { screenOrientationAngle } from './input.js?v=iv-4.1.2-t2';
 
 const AXES = [
   ['lookX', 'Look X (right)'],
