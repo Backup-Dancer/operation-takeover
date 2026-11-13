@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.2-t2';
-import { getOp, listSide } from './operators.js?v=iv-4.1.2-t2';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.2-t2';
-import { isHostile } from './combat.js?v=iv-4.1.2-t2';
-import { SPEED } from './config.js?v=iv-4.1.2-t2';
-import { difficultyParams } from './difficulty.js?v=iv-4.1.2-t2';
-import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt, inSpawnYard, isSpawnProtected, actionAge } from './match/vision.js?v=iv-4.1.2-t2';
-import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.2-t2';
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.2-t3';
+import { getOp, listSide } from './operators.js?v=iv-4.1.2-t3';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.2-t3';
+import { isHostile } from './combat.js?v=iv-4.1.2-t3';
+import { SPEED } from './config.js?v=iv-4.1.2-t3';
+import { difficultyParams } from './difficulty.js?v=iv-4.1.2-t3';
+import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt, inSpawnYard, isSpawnProtected, actionAge } from './match/vision.js?v=iv-4.1.2-t3';
+import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.2-t3';
 
 export function spawnBots(game) {
   const bots = [];

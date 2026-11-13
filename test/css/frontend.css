@@ -552,3 +552,30 @@
 /* Team colour treatment on the match-start columns. */
 #ms-atk{padding-left:4px;border-left:3px solid var(--fe-atk)}
 #ms-def{padding-left:4px;border-left:3px solid var(--fe-def)}
+
+/* ---------- short landscape (iPhone Safari with toolbars, ~290px tall) ----------
+ * Safari's address and tab bars leave about 290 CSS px. Panels end above the
+ * home-indicator inset, so at default sizes the Shop's second row and the
+ * tab column were clipped. Compact them so everything fits, and fade any
+ * panel that still has more to scroll so it never reads as cut off. */
+@media (max-height: 340px) {
+  #missions-body, #rewards-body, #shop-body, #practice-body{bottom:calc(4px + var(--sb))}
+  .fe-tabs{bottom:calc(6px + var(--sb));gap:4px}
+  .fe-tab{min-height:0}
+  #shop-body{gap:6px;align-content:start}
+  .fe-shop-card{min-height:0;padding:7px 9px;gap:1px}
+  .fe-shop-card .swatch{height:12px;margin-bottom:3px}
+  .fe-shop-card .cost{margin-top:3px}
+  .fe-panel-block{padding:9px 10px;margin:0 0 8px}
+  .fe-chal{margin:7px 0 0}
+  .fe-tiers{margin-top:8px}
+  .fe-tier{height:54px}
+}
+.fe-more-y{
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent);
+          mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent);
+}
+.fe-more-x{
+  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+          mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+}

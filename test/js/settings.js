@@ -1,5 +1,5 @@
-import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-4.1.2-t2';
-import { normalizeDifficulty } from './difficulty.js?v=iv-4.1.2-t2';
+import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-4.1.2-t3';
+import { normalizeDifficulty } from './difficulty.js?v=iv-4.1.2-t3';
 
 export const DEFAULTS = {
   quality: 'auto',

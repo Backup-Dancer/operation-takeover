@@ -1,17 +1,17 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from '../operators.js?v=iv-4.1.2-t2';
-import { loadLore, loreFor, loreUnits } from '../menu/lore.js?v=iv-4.1.2-t2';
-import { cardUrl, hasPortrait, loadBust } from '../menu/portraits.js?v=iv-4.1.2-t2';
-import { WEAPONS, UTIL, makeLoadout } from '../weapons.js?v=iv-4.1.2-t2';
-import { saveSettings } from '../settings.js?v=iv-4.1.2-t2';
-import { BUILD, TITLE, MAP_NAME } from '../config.js?v=iv-4.1.2-t2';
-import { playLoop, playStinger, stopMusic, unlock as unlockAudio } from '../audio.js?v=iv-4.1.2-t2';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from '../operators.js?v=iv-4.1.2-t3';
+import { loadLore, loreFor, loreUnits } from '../menu/lore.js?v=iv-4.1.2-t3';
+import { cardUrl, hasPortrait, loadBust } from '../menu/portraits.js?v=iv-4.1.2-t3';
+import { WEAPONS, UTIL, makeLoadout } from '../weapons.js?v=iv-4.1.2-t3';
+import { saveSettings } from '../settings.js?v=iv-4.1.2-t3';
+import { BUILD, TITLE, MAP_NAME } from '../config.js?v=iv-4.1.2-t3';
+import { playLoop, playStinger, stopMusic, unlock as unlockAudio } from '../audio.js?v=iv-4.1.2-t3';
 import {
   MAPS, MODES, TIPS, GUNSMITH_SLOTS, GUNSMITH_OPTS,
   mapById, modeById, mapArtUrl, FIRETEAM_BOTS, RIVAL_BOTS,
 } from './data.js';
-import { loadProfile, saveProfile, winRate, challengeState, applyMatchRewards, INDUCTION, FIELD_PASS } from './profile.js?v=iv-4.1.2-t2';
-import { startMatch, bindHooks, mockMatchResult, peekMatchApi, matchSnapshot, snapshotFromApi, isCompleteSnapshot, richerSnapshot, isStrictlyRicher } from './match-adapter.js?v=iv-4.1.2-t2';
-import { GamepadNav } from './nav.js?v=iv-4.1.2-t2';
+import { loadProfile, saveProfile, winRate, challengeState, applyMatchRewards, INDUCTION, FIELD_PASS } from './profile.js?v=iv-4.1.2-t3';
+import { startMatch, bindHooks, mockMatchResult, peekMatchApi, matchSnapshot, snapshotFromApi, isCompleteSnapshot, richerSnapshot, isStrictlyRicher } from './match-adapter.js?v=iv-4.1.2-t3';
+import { GamepadNav } from './nav.js?v=iv-4.1.2-t3';
 
 const MENU_LOOP = 'main_menu_loop';
 const QUEUE_LOOP = 'matchmaking_loop';
@@ -256,6 +256,7 @@ export class FrontEnd {
     if (id === 'rewards') this._paintRewards();
     if (id === 'shop') this._paintShop();
     if (id === 'practice') this._paintPractice();
+    this._watchScrollHints();
     if (id === 'slam') this._paintSlam();
     if (id === 'highlights') this._paintHighlights();
     if (id === 'postscore') this._paintScoreboard();
@@ -733,14 +734,45 @@ export class FrontEnd {
       const cur = i === p.passTier;
       tiers.push(`<div class="fe-tier ${on ? 'on' : ''} ${cur ? 'cur' : ''}"><b>${i}</b><small>${i % 5 === 0 ? 'Charm' : 'Marks'}</small></div>`);
     }
-    el.innerHTML = `
+    el.innerHTML = `<div class="fe-panel-block">
       <div class="fe-kicker">${esc(FIELD_PASS.season)}</div>
       <h3>${esc(FIELD_PASS.name)} · TIER ${p.passTier}</h3>
       <div class="fe-bar-label"><span>Tier progress</span><b>${p.passXp}/${FIELD_PASS.xpPerTier}</b></div>
       <div class="fe-bar fat"><i style="width:${(p.passXp / FIELD_PASS.xpPerTier) * 100}%"></i></div>
       <div class="fe-tiers">${tiers.join('')}</div>
       <p class="fine">Free track only. No purchase is required to earn Marks and charms.</p>
-    `;
+    </div>`;
+  }
+
+  /** Fade the edge of a menu panel while it has more to scroll, so content
+   *  past the edge reads as "scroll for more" rather than clipped. */
+  _updateScrollHints() {
+    const sel = '#missions-body, #rewards-body, #shop-body, #practice-body, #fe-op-detail, .fe-op-detail-scroll, .fe-tiers';
+    for (const el of document.querySelectorAll(sel)) {
+      const moreY = el.scrollHeight - el.clientHeight - el.scrollTop > 2;
+      const moreX = el.scrollWidth - el.clientWidth - el.scrollLeft > 2;
+      el.classList.toggle('fe-more-y', moreY && !moreX);
+      el.classList.toggle('fe-more-x', moreX);
+    }
+  }
+
+  _watchScrollHints() {
+    if (!this._scrollHintsBound) {
+      this._scrollHintsBound = true;
+      let queued = false;
+      const kick = () => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => { queued = false; this._updateScrollHints(); });
+      };
+      this._kickScrollHints = kick;
+      document.addEventListener('scroll', kick, { capture: true, passive: true });
+      addEventListener('resize', kick);
+      globalThis.visualViewport?.addEventListener('resize', kick);
+    }
+    this._kickScrollHints();
+    // Panels paint async (fonts, data), so check again once layout settles.
+    setTimeout(() => this._kickScrollHints?.(), 250);
   }
 
   _paintShop() {
