@@ -119,3 +119,102 @@ export function directionAgrees(dx, dz, intendedX, intendedZ, minDot = 0.7) {
   if (a < 1e-8 || b < 1e-8) return false;
   return (dx * intendedX + dz * intendedZ) / (a * b) >= minDot;
 }
+
+/** Per-axis safety-net stored in settings.axisTweaks.
+ *  Values of -1 flip that axis; swapLook / swapMove exchange X and Y. */
+export function applyAxisTweaks(x, y, tweaks, which = 'look') {
+  const t = tweaks && typeof tweaks === 'object' ? tweaks : {};
+  let ox = x || 0, oy = y || 0;
+  if (which === 'look' && t.swapLook) { const tmp = ox; ox = oy; oy = tmp; }
+  if (which === 'move' && t.swapMove) { const tmp = ox; ox = oy; oy = tmp; }
+  if (which === 'look') {
+    if (t.lookX === -1) ox = -ox;
+    if (t.lookY === -1) oy = -oy;
+  } else {
+    if (t.moveX === -1) ox = -ox;
+    if (t.moveY === -1) oy = -oy;
+  }
+  return { x: ox, y: oy };
+}
+
+export function normalizeAxisTweaks(raw) {
+  const t = raw && typeof raw === 'object' ? raw : {};
+  const sign = (v) => (v === -1 || v === '-1' ? -1 : 1);
+  return {
+    lookX: sign(t.lookX),
+    lookY: sign(t.lookY),
+    moveX: sign(t.moveX),
+    moveY: sign(t.moveY),
+    swapLook: t.swapLook === true,
+    swapMove: t.swapMove === true,
+  };
+}
+
+/**
+ * Combined 2D CSS rotation of `el` and its ancestors, in degrees.
+ * clientX/Y are viewport-space, so this is only needed when a "rotate to
+ * landscape" transform has been applied to the page (we do not remap by
+ * screen.orientation.angle — that would invert a correct viewport delta).
+ */
+export function cssRotationDeg(el) {
+  if (!el || typeof getComputedStyle !== 'function') return 0;
+  let angle = 0;
+  let node = el;
+  const root = el.ownerDocument?.documentElement;
+  while (node && node !== root) {
+    try {
+      const t = getComputedStyle(node).transform;
+      if (t && t !== 'none') {
+        const m = t.match(/matrix\(([^)]+)\)/);
+        if (m) {
+          const p = m[1].split(',').map(Number);
+          if (Number.isFinite(p[0]) && Number.isFinite(p[1])) {
+            angle += Math.atan2(p[1], p[0]) * 180 / Math.PI;
+          }
+        }
+      }
+    } catch {}
+    node = node.parentElement;
+  }
+  return angle;
+}
+
+/** Undo a CSS rotation so a visual drag-right stays +dx in viewport space. */
+export function unrotateDelta(dx, dy, el) {
+  const deg = cssRotationDeg(el);
+  if (!deg || !Number.isFinite(deg)) return { dx: dx || 0, dy: dy || 0 };
+  const r = -deg * Math.PI / 180;
+  const c = Math.cos(r), s = Math.sin(r);
+  const x = dx || 0, y = dy || 0;
+  return { dx: x * c - y * s, dy: x * s + y * c };
+}
+
+/**
+ * Infer the look-stick axes of a Gamepad.
+ * Standard mapping: left 0/1, right 2/3.
+ * Some iOS / DirectInput pads expose the right stick on 3/4 (axis 2 is a trigger).
+ * `auto` stays on standard at rest, and switches to axes-34 only when 2/3 are
+ * idle and 3/4 are clearly deflected.
+ */
+export function detectPadMapping(axes) {
+  const A = Array.isArray(axes) ? axes : (axes?.axes || []);
+  if (A.length < 4) return 'unknown';
+  // Exactly 5 axes is a common DirectInput layout (right stick on 3/4).
+  // Standard pads usually expose 4 or 6 (sticks + triggers).
+  if (A.length === 5) return 'axes-34';
+  const n = (i) => (Number.isFinite(A[i]) ? A[i] : 0);
+  const mag23 = Math.hypot(n(2), n(3));
+  const mag34 = A.length > 4 ? Math.hypot(n(3), n(4)) : 0;
+  if (A.length > 4 && mag23 < 0.15 && mag34 > 0.4) return 'axes-34';
+  return 'standard';
+}
+
+export function readPadSticks(axes, mapping = 'auto') {
+  const A = Array.isArray(axes) ? axes : (axes?.axes || []);
+  const resolved = mapping === 'auto' ? detectPadMapping(A) : mapping;
+  const num = (i) => (Number.isFinite(A[i]) ? A[i] : 0);
+  if (resolved === 'axes-34' || resolved === 'axes-3-4') {
+    return { lx: num(0), ly: num(1), rx: num(3), ry: num(4), mapping: 'axes-34' };
+  }
+  return { lx: num(0), ly: num(1), rx: num(2), ry: num(3), mapping: resolved === 'unknown' ? 'unknown' : 'standard' };
+}

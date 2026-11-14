@@ -1,31 +1,31 @@
 import * as THREE from 'three';
-import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.1';
-import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.1';
-import { Gfx } from './gfx.js?v=iv-4.1.1';
-import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.1';
-import { mulberry32 } from './math.js?v=iv-4.1.1';
-import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.1';
-import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat, freezeMatchEnd } from './match/stats.js?v=iv-4.1.1';
-import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.1';
-import { pickSafeAttackSpawn, inBuilding } from './match/vision.js?v=iv-4.1.1';
-import { Input } from './input.js?v=iv-4.1.1';
-import { UI } from './ui.js?v=iv-4.1.1';
-import { World } from './world.js?v=iv-4.1.1';
-import { Nav } from './nav.js?v=iv-4.1.1';
-import { getOp } from './operators.js?v=iv-4.1.1';
-import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.1';
-import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.1';
-import { Gadgets } from './gadgets.js?v=iv-4.1.1';
-import * as combat from './combat.js?v=iv-4.1.1';
-import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.1';
-import { DroneSys } from './drone.js?v=iv-4.1.1';
-import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.1';
-import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.1';
-import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.1';
-import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.1';
-import { buildHuman, measure } from './characters.js?v=iv-4.1.1';
-import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.1';
-import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.1';
+import { BUILD, TITLE, PREP_TIME, ACTION_TIME, PLANT_TIME, DEFUSE_TIME, BOMB_TIME, INTERMISSION, REINFORCE_TIME, EYE } from './config.js?v=iv-4.1.2';
+import { loadSettings, saveSettings } from './settings.js?v=iv-4.1.2';
+import { Gfx } from './gfx.js?v=iv-4.1.2';
+import { unlock as unlockAudio, sfx, playDispatch, loadDispatch, stopMusic, announce } from './audio.js?v=iv-4.1.2';
+import { mulberry32 } from './math.js?v=iv-4.1.2';
+import { attachMatchApi, normalizeMatchConfig, MatchHandle, lineupPayload, rosterPayload } from './match/api.js?v=iv-4.1.2';
+import { resetMatchStats, collectStats, recordKill, recordDown, recordRevive, recordObjective, awardRoundWin, resetRoundCombat, addScore, ensureStat, freezeMatchEnd } from './match/stats.js?v=iv-4.1.2';
+import { BLEED_TIME, REVIVE_TIME, REVIVE_HP, MAX_HP } from './match/combat.js?v=iv-4.1.2';
+import { pickSafeAttackSpawn, inBuilding, isSpawnProtected, SPAWN_PROTECT_SEC, hasLOS } from './match/vision.js?v=iv-4.1.2';
+import { Input } from './input.js?v=iv-4.1.2';
+import { UI } from './ui.js?v=iv-4.1.2';
+import { World } from './world.js?v=iv-4.1.2';
+import { Nav } from './nav.js?v=iv-4.1.2';
+import { getOp } from './operators.js?v=iv-4.1.2';
+import { makeLoadout, instWeapon, UTIL, WEAPONS } from './weapons.js?v=iv-4.1.2';
+import { createPlayer, updatePlayer, updateCamera, startRappel as doStartRappel, detachRappel as doDetach, setStance as doSetStance, buildVm, opticScreenPos as doOptic, colH, updateRappel as doUpdateRappel, clearAdsToggle } from './player.js?v=iv-4.1.2';
+import { Gadgets } from './gadgets.js?v=iv-4.1.2';
+import * as combat from './combat.js?v=iv-4.1.2';
+import { spawnBots, updateBots, readyBots } from './bots.js?v=iv-4.1.2';
+import { DroneSys } from './drone.js?v=iv-4.1.2';
+import { addMark, resetMarks, updateMarks, aimPing, autoScan } from './marks.js?v=iv-4.1.2';
+import { difficultyParams, normalizeDifficulty } from './difficulty.js?v=iv-4.1.2';
+import { scorePopup, showWon, showEliminated, showMatchCard, hideMatchOverlays, updateCompass, updateSquad, setReinforceRing, setProgressRing, roomCallout, showScanning } from './banners.js?v=iv-4.1.2';
+import { MAP, SITE_PAIRS, floorY } from './map.js?v=iv-4.1.2';
+import { buildHuman, measure } from './characters.js?v=iv-4.1.2';
+import { createFirstPersonViewmodel, createDefuserViewmodel, initModelLoaders, updateOperatorLod, preloadKnown, preloadWeapon, prefetchOtherWeapons, resetWeaponInstances } from './models.js?v=iv-4.1.2';
+import { MenuScene } from './menu/MenuScene.js?v=iv-4.1.2';
 
 export class Game {
   get charges(){ return this.gadgets.charges; }
@@ -768,6 +768,7 @@ export class Game {
     if (!who) return;
     if (!who.alive && !who.downed) return;
     if (who === this.player && this.godMode) return;
+    if (isSpawnProtected(this, who)) return;
     const already = info?.part != null;
     const mul = already ? 1 : (1 - (who.armor || 0) * 0.12);
     const fromBot = info?.who && info.who !== this.player && info.who.kind === 'operator';
@@ -833,11 +834,45 @@ export class Game {
     else if (def === 0 && hanging('defend') === 0 && this.round.planted) this._endRound('attack', 'elim');
   }
 
+  _armSpawnProtect() {
+    const until = (this.time || 0) + SPAWN_PROTECT_SEC;
+    const arm = (pawn) => {
+      if (!pawn || pawn.team !== 'attack') return;
+      pawn.spawnProtectUntil = until;
+    };
+    arm(this.player);
+    for (const b of this.bots || []) {
+      arm(b);
+      // Reaction delay must restart at ACTION — do not carry drone sight from prep.
+      b._sawAt = 0;
+      b._hasFired = false;
+      b.aimT = 0;
+    }
+    if (this.player?.team === 'attack') this._ensureSafeAttackSpawn();
+  }
+
+  _ensureSafeAttackSpawn() {
+    const p = this.player;
+    if (!p?.pos) return;
+    const defenders = (this.bots || []).filter(b => b && b.team === 'defend' && b.alive && b.pos);
+    const exposed = defenders.some(d => hasLOS(
+      this.world, d.pos.x, (d.pos.y || 0) + 1.45, d.pos.z,
+      p.pos.x, (p.pos.y || 0) + 1.5, p.pos.z, 10,
+    ));
+    if (!exposed) return;
+    const s = pickSafeAttackSpawn(this, 0, this._rng || Math.random);
+    p.pos.set(s.x, s.y || 0, s.z);
+    if (s.yaw != null) p.yaw = s.yaw;
+  }
+
   _setPhase(ph, t) {
     this.round.phase = ph; this.round.t = t;
     const el = document.getElementById('hud-phase');
     if (el) el.textContent = ph.toUpperCase();
-    if (ph === 'action') this.round.actionAt = this.time || 0;
+    if (ph === 'action') {
+      this.round.actionAt = this.time || 0;
+      this._armSpawnProtect();
+    }
     if (ph !== 'prep') {
       this._prepCount = null;
       document.getElementById('hud-countdown')?.classList.remove('show');

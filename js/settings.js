@@ -1,5 +1,5 @@
-import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-4.1.1';
-import { normalizeDifficulty } from './difficulty.js?v=iv-4.1.1';
+import { STORAGE_KEY, DEFAULT_BEST_OF } from './config.js?v=iv-4.1.2';
+import { normalizeDifficulty } from './difficulty.js?v=iv-4.1.2';
 
 export const DEFAULTS = {
   quality: 'auto',
@@ -31,6 +31,10 @@ export const DEFAULTS = {
     opacity: 0.95,
   },
   padMap: null,
+  padMapping: 'auto',  // auto | standard | axes-34
+  padDeadzone: 0.14,
+  padCurve: 1.35,
+  axisTweaks: { lookX: 1, lookY: 1, moveX: 1, moveY: 1, swapLook: false, swapMove: false },
   side: 'attack',
   difficulty: 'veteran',
   bestOf: DEFAULT_BEST_OF,
@@ -54,6 +58,10 @@ export function loadSettings() {
     merge(out, d);
     // Fresh installs and corrupt/legacy values must not invert look.
     out.invertY = out.invertY === true;
+    out.axisTweaks = normalizeTweaks(out.axisTweaks);
+    out.padMapping = ['auto', 'standard', 'axes-34'].includes(out.padMapping) ? out.padMapping : 'auto';
+    if (!Number.isFinite(out.padDeadzone)) out.padDeadzone = DEFAULTS.padDeadzone;
+    if (!Number.isFinite(out.padCurve)) out.padCurve = DEFAULTS.padCurve;
     out.difficulty = normalizeDifficulty(out.difficulty);
     // iv-3.0.3: touch defaults to Toggle, controller to Hold, unless the
     // player has explicitly picked a mode (legacy saves had adsMode:'hold'
@@ -89,4 +97,25 @@ export function resolvedAdsMode(settings, input) {
   if (settings?.adsModeUser) return settings.adsMode === 'hold' ? 'hold' : 'toggle';
   if (input?.padConnected || input?.mode === 'pad') return 'hold';
   return 'toggle';
+}
+
+function normalizeTweaks(raw) {
+  const t = raw && typeof raw === 'object' ? raw : {};
+  const sign = (v) => (v === -1 || v === '-1' ? -1 : 1);
+  return {
+    lookX: sign(t.lookX),
+    lookY: sign(t.lookY),
+    moveX: sign(t.moveX),
+    moveY: sign(t.moveY),
+    swapLook: t.swapLook === true,
+    swapMove: t.swapMove === true,
+  };
+}
+
+export function setAxisTweak(settings, key, value) {
+  const t = normalizeTweaks(settings.axisTweaks);
+  if (key === 'swapLook' || key === 'swapMove') t[key] = !!value;
+  else if (key in t) t[key] = value === -1 ? -1 : 1;
+  settings.axisTweaks = t;
+  return t;
 }

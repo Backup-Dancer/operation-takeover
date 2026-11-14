@@ -1,10 +1,11 @@
-import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-4.1.1';
-import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-4.1.1';
-import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-4.1.1';
-import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-4.1.1';
-import { saveSettings, DEFAULTS } from './settings.js?v=iv-4.1.1';
-import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-4.1.1';
-import { QUALITY, TITLE, BUILD } from './config.js?v=iv-4.1.1';
+import { ATTACKERS, DEFENDERS, getOp, listSide } from './operators.js?v=iv-4.1.2';
+import { loadLore, loreFor, loreUnits } from './menu/lore.js?v=iv-4.1.2';
+import { cardUrl, hasPortrait, loadBust } from './menu/portraits.js?v=iv-4.1.2';
+import { WEAPONS, UTIL, makeLoadout } from './weapons.js?v=iv-4.1.2';
+import { saveSettings, DEFAULTS } from './settings.js?v=iv-4.1.2';
+import { DIFFICULTY_IDS, normalizeDifficulty } from './difficulty.js?v=iv-4.1.2';
+import { QUALITY, TITLE, BUILD } from './config.js?v=iv-4.1.2';
+import { showInputTest } from './input-test.js?v=iv-4.1.2';
 
 export class UI {
   constructor(game) {
@@ -64,6 +65,7 @@ export class UI {
     const a = b.dataset.action, arg = b.dataset.arg, k = b.dataset.k, v = b.dataset.v;
     const g = this.game;
     if (a === 'boot') return (window.__FE?.boot ? window.__FE.boot() : g.boot());
+    if (a === 'inputtest') { showInputTest(g); return; }
     if (a === 'goto') {
       if (arg === 'hudedit') { this.show('hudedit'); g.input.startHudEdit(); return; }
       this.show(arg); return;
@@ -296,6 +298,7 @@ export class UI {
       ${rowRange('gyroYaw', 'Gyro yaw', s.gyroYaw, 0.2, 2, 0.05)}
       ${rowRange('gyroPitch', 'Gyro pitch', s.gyroPitch, 0.2, 2, 0.05)}
       ${rowChk('invertY', 'Invert Y', s.invertY)}
+      <button class="btn" data-action="inputtest">CONTROLS TEST</button>
       <div class="slotlbl">CONTROLS</div>
       ${rowSel('leanMode', 'Lean', s.leanMode, ['toggle','hold'])}
       ${rowSel('adsMode', 'ADS (touch default Toggle; controller default Hold)', s.adsModeUser ? s.adsMode : 'toggle', ['toggle','hold'])}
@@ -372,9 +375,10 @@ export class UI {
   _renderControls(tab) {
     for (const c of document.querySelectorAll('#ctrl-tabs .chip')) c.classList.toggle('on', c.dataset.v === tab);
     const body = document.getElementById('ctrl-body');
-    if (tab === 'touch') body.innerHTML = `<p>Left stick moves. Push past the top edge to lock sprint. Drag the right side to look. FIRE is the large right button; ADS sits inward of it. Lean L / R are toggles and stay on while you aim. Hold ACTION to plant or defuse, or to open a door. RAPPEL appears on any exterior wall. DETONATE appears once a charge is placed — nothing auto-explodes.</p>`;
-    if (tab === 'pad') body.innerHTML = `<p>LT ADS · RT fire · LB / RB lean · B crouch (hold for prone) · X reload (hold to interact) · Y swap · A vault / rappel · D-pad gadgets / drone / cams · Start pause · View scoreboard. Sticks: move and look, click left stick to sprint.</p>`;
-    if (tab === 'kbm') body.innerHTML = `<p>WASD move, Shift sprint, mouse look (click the game to lock the pointer), LMB fire, RMB ADS, Ctrl / C crouch, hold Ctrl or Z for prone, Q lean left, R reload, F / E interact, G gadget, B detonate, T drone, H ping, X swap, Tab scoreboard, Esc pause.</p>`;
+    const testBtn = `<div class="row" style="margin-top:10px"><button class="btn" data-action="inputtest">CONTROLS TEST</button></div>`;
+    if (tab === 'touch') body.innerHTML = `<p>Left stick moves. Push past the top edge to lock sprint. Drag the right side to look. FIRE is the large right button; ADS sits inward of it. Lean L / R are toggles and stay on while you aim. Hold ACTION to plant or defuse, or to open a door. RAPPEL appears on any exterior wall. DETONATE appears once a charge is placed — nothing auto-explodes.</p>` + testBtn;
+    if (tab === 'pad') body.innerHTML = `<p>LT ADS · RT fire · LB / RB lean · B crouch (hold for prone) · X reload (hold to interact) · Y swap · A vault / rappel · D-pad gadgets / drone / cams · Start pause · View scoreboard. Sticks: move and look, click left stick to sprint.</p>` + testBtn;
+    if (tab === 'kbm') body.innerHTML = `<p>WASD move, Shift sprint, mouse look (click the game to lock the pointer), LMB fire, RMB ADS, Ctrl / C crouch, hold Ctrl or Z for prone, Q lean left, R reload, F / E interact, G gadget, B detonate, T drone, H ping, X swap, Tab scoreboard, Esc pause.</p>` + testBtn;
   }
   _renderBoard(id) {
     const el = document.getElementById(id); if (!el) return;

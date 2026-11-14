@@ -1,6 +1,6 @@
-import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-4.1.1';
-import { stickFromDelta, moveFromPad, lookFromDrag, lookFromPad } from './match/axes.js?v=iv-4.1.1';
-import { aimAssistScale } from './match/combat.js?v=iv-4.1.1';
+import { saveSettings, resolvedAdsMode } from './settings.js?v=iv-4.1.2';
+import { stickFromDelta, moveFromPad, lookFromDrag, lookFromPad, applyAxisTweaks, unrotateDelta, readPadSticks, detectPadMapping } from './match/axes.js?v=iv-4.1.2';
+import { aimAssistScale } from './match/combat.js?v=iv-4.1.2';
 
 /** Clockwise degrees from the device's natural portrait. */
 export function screenOrientationAngle() {
@@ -163,48 +163,117 @@ export class Input {
   _bindDom() {
     const touch = document.getElementById('touch');
     const stick = document.getElementById('stick-base');
-    // Single input path: if PointerEvent exists, never also bind touch.
-    // iOS Safari fires both for every finger; handling both doubled toggles
-    // and made look/walk fight each other. Playwright CDP touches fire
-    // pointer events, so tests stay on this path. Force the touch fallback
-    // only with window.__IV_FORCE_TOUCH (set before Input is constructed).
-    const usePointer = typeof window.PointerEvent === 'function' && !window.__IV_FORCE_TOUCH;
-    this._usePointer = usePointer;
-    if (usePointer) {
+    // Bind TouchEvent and PointerEvent together and de-dupe. iOS Safari
+    // fires both for every finger; handling both without a de-dupe doubled
+    // toggles. Pointer-only was also wrong: Playwright then passed on the
+    // pointer path while a real iPhone still delivers TouchEvents (and
+    // Pointer Events for a second finger are unreliable on iOS).
+    // __IV_FORCE_TOUCH / __IV_FORCE_POINTER pin a single path for tests.
+    const forceTouch = typeof window !== 'undefined' && !!window.__IV_FORCE_TOUCH;
+    const forcePointer = typeof window !== 'undefined' && !!window.__IV_FORCE_POINTER;
+    const hasPointer = typeof window.PointerEvent === 'function';
+    const touchy = (typeof window !== 'undefined') && (
+      'ontouchstart' in window || (navigator && navigator.maxTouchPoints > 0)
+    );
+    const bindPointer = hasPointer && !forceTouch;
+    const bindTouch = forceTouch || (!forcePointer && (touchy || !hasPointer));
+    this._usePointer = bindPointer;
+    this._useTouch = bindTouch;
+    this._recentInput = [];
+    if (bindPointer) {
       touch.addEventListener('pointerdown', e => this._pDown(e), { passive: false });
       touch.addEventListener('pointermove', e => this._pMove(e), { passive: false });
       touch.addEventListener('pointerup', e => this._pUp(e), { passive: false });
       touch.addEventListener('pointercancel', e => this._pUp(e), { passive: false });
       stick.addEventListener('pointerdown', e => this._stickDown(e), { passive: false });
-    } else {
+    }
+    if (bindTouch) {
       touch.addEventListener('touchstart', e => this._touchStart(e), { passive: false });
       touch.addEventListener('touchmove', e => this._touchMove(e), { passive: false });
       touch.addEventListener('touchend', e => this._touchEnd(e));
       touch.addEventListener('touchcancel', e => this._touchEnd(e));
     }
     addEventListener('contextmenu', e => e.preventDefault());
+    this._bindOrientation();
+  }
+
+  _bindOrientation() {
+    if (this._orientBound) return;
+    this._orientBound = true;
+    const reset = () => this._resetGestures();
+    addEventListener('orientationchange', reset);
+    addEventListener('resize', reset);
+    try {
+      visualViewport?.addEventListener('resize', reset);
+      visualViewport?.addEventListener('scroll', () => {
+        if (this.stick.active) this._recomputeStickCenter();
+      });
+    } catch {}
+  }
+
+  _resetGestures() {
+    this.lookId = -1;
+    this.lookLast = null;
+    if (this.stick.active) this._stickUp();
+  }
+
+  _recomputeStickCenter() {
+    const stick = document.getElementById('stick-base');
+    if (!stick) return;
+    const r = stick.getBoundingClientRect();
+    this.stick.cx = r.left + r.width / 2;
+    this.stick.cy = r.top + r.height / 2;
+    this.stick.r = r.width / 2;
+  }
+
+  _isDupe(phase, x, y, source) {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const rec = this._recentInput || (this._recentInput = []);
+    while (rec.length && now - rec[0].t > 80) rec.shift();
+    // Only collapse the iOS pair (touch + pointer for the same finger).
+    // Two real TouchEvents in a row at the same point must still count.
+    return rec.some(r => r.phase === phase && r.source !== source
+      && now - r.t < 50 && Math.hypot(r.x - x, r.y - y) < 6);
+  }
+
+  _markInput(phase, x, y, source) {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const rec = this._recentInput || (this._recentInput = []);
+    rec.push({ phase, x, y, t: now, source: source || 'unknown' });
+    if (rec.length > 24) rec.shift();
+  }
+
+  _screenDelta(dx, dy) {
+    const el = document.getElementById('touch') || document.getElementById('game') || document.body;
+    return unrotateDelta(dx, dy, el);
   }
 
   _touchStart(e) {
     safePrevent(e);
     for (const t of e.changedTouches) {
+      if (this._isDupe('start', t.clientX, t.clientY, 'touch')) continue;
+      this._markInput('start', t.clientX, t.clientY, 'touch');
       const ev = synthPointer(t, document.elementFromPoint(t.clientX, t.clientY) || e.target);
       const el = ev.target?.closest?.('[data-ctl],.tbtn,#stick-base');
-      if (el && (el.id === 'stick-base' || el.id === 'stick-knob')) this._stickDown(ev);
-      else this._pDown(ev);
+      if (el && (el.id === 'stick-base' || el.id === 'stick-knob')) this._stickDown(ev, 'touch');
+      else this._pDown(ev, true);
     }
   }
   _touchMove(e) {
     safePrevent(e);
     for (const t of e.changedTouches) {
+      if (this._isDupe('move', t.clientX, t.clientY, 'touch')) continue;
+      this._markInput('move', t.clientX, t.clientY, 'touch');
       const ev = synthPointer(t, e.target);
-      this._pMove(ev);
+      this._pMove(ev, true);
     }
   }
   _touchEnd(e) {
     for (const t of e.changedTouches) {
+      if (this._isDupe('end', t.clientX, t.clientY, 'touch')) continue;
+      this._markInput('end', t.clientX, t.clientY, 'touch');
       const ev = synthPointer(t, e.target);
-      this._pUp(ev);
+      this._pUp(ev, true);
       if (this.stick.id === ev.pointerId) this._stickUp();
     }
   }
@@ -214,12 +283,18 @@ export class Input {
     return el;
   }
 
-  _pDown(e) {
+  _pDown(e, fromTouch = false) {
     if (this.hudEdit) return this._editDown(e);
+    if (!fromTouch) {
+      if (this._isDupe('start', e.clientX, e.clientY, 'pointer')) return;
+      this._markInput('start', e.clientX, e.clientY, 'pointer');
+    }
     const el = this._ctlFromEvent(e);
     if (!el) {
-      // look drag if on look zone or empty
-      if (e.target.id === 'look-zone' || e.target.id === 'touch') this._lookStart(e);
+      // look drag if on look zone, the touch layer, the canvas, or empty hud
+      const t = e.target;
+      if (!t || t.id === 'look-zone' || t.id === 'touch' || t.id === 'game'
+          || t.closest?.('#look-zone, #touch, #game, #hud, canvas')) this._lookStart(e);
       return;
     }
     if (el.id === 'stick-base' || el.id === 'stick-knob') return;
@@ -230,13 +305,21 @@ export class Input {
     el.classList.add('down');
     this._press(ctl, true, e);
   }
-  _pMove(e) {
+  _pMove(e, fromTouch = false) {
     if (this.hudEdit) return this._editMove(e);
+    if (!fromTouch) {
+      if (this._isDupe('move', e.clientX, e.clientY, 'pointer')) return;
+      this._markInput('move', e.clientX, e.clientY, 'pointer');
+    }
     if (e.pointerId === this.stick.id) this._stickMove(e);
     if (e.pointerId === this.lookId) this._lookMove(e);
   }
-  _pUp(e) {
+  _pUp(e, fromTouch = false) {
     if (this.hudEdit) return this._editUp(e);
+    if (!fromTouch) {
+      if (this._isDupe('end', e.clientX, e.clientY, 'pointer')) return;
+      this._markInput('end', e.clientX, e.clientY, 'pointer');
+    }
     if (e.pointerId === this.stick.id) this._stickUp();
     if (e.pointerId === this.lookId) this.lookId = -1;
     const rec = this.btnTouches.get(e.pointerId);
@@ -299,8 +382,10 @@ export class Input {
     document.getElementById('tb-leanr')?.classList.toggle('on', p.leanT > 0 || this.leanHold > 0);
   }
 
-  _stickDown(e) {
+  _stickDown(e, source = 'pointer') {
     safePrevent(e);
+    if (this._isDupe('stick', e.clientX, e.clientY, source)) return;
+    this._markInput('stick', e.clientX, e.clientY, source);
     const stick = document.getElementById('stick-base');
     capturePointer(stick, e);
     const r = stick.getBoundingClientRect();
@@ -310,16 +395,20 @@ export class Input {
     this._stickMove(e);
   }
   _stickMove(e) {
-    const dx = e.clientX - this.stick.cx, dy = e.clientY - this.stick.cy;
+    this._recomputeStickCenter();
+    const rawX = e.clientX - this.stick.cx, rawY = e.clientY - this.stick.cy;
+    const rot = this._screenDelta(rawX, rawY);
+    const dx = rot.dx, dy = rot.dy;
     const r = this.stick.r || 60;
     const shaped = stickFromDelta(dx, dy, r);
-    this.moveX = shaped.x;
-    this.moveY = shaped.y;
+    const tw = applyAxisTweaks(shaped.x, shaped.y, this.settings.axisTweaks, 'move');
+    this.moveX = tw.x;
+    this.moveY = tw.y;
     const knob = document.getElementById('stick-knob');
     if (knob) {
-      const mag = Math.min(r, Math.hypot(dx, dy)) || 0;
-      const k = mag ? (mag / Math.hypot(dx, dy)) : 0;
-      knob.style.transform = `translate(${dx * k}px,${dy * k}px)`;
+      const mag = Math.min(r, Math.hypot(rawX, rawY)) || 0;
+      const k = mag ? (mag / Math.hypot(rawX, rawY)) : 0;
+      knob.style.transform = `translate(${rawX * k}px,${rawY * k}px)`;
     }
     // sprint lock past the top edge
     if (this.settings.sprintMode === 'lock') {
@@ -345,17 +434,18 @@ export class Input {
   }
   _lookMove(e) {
     if (!this.lookLast) return;
-    const dx = e.clientX - this.lookLast.x, dy = e.clientY - this.lookLast.y;
+    const rot = this._screenDelta(e.clientX - this.lookLast.x, e.clientY - this.lookLast.y);
     this.lookLast = { x: e.clientX, y: e.clientY };
-    const look = lookFromDrag(dx, dy, {
+    const look = lookFromDrag(rot.dx, rot.dy, {
       sensitivity: this.settings.sensitivity || 1,
       adsSensitivity: this.settings.adsSensitivity || 0.7,
       ads: this.game.player?.ads || 0,
       invertY: this.settings.invertY === true,
     });
+    const tw = applyAxisTweaks(look.lookX, look.lookY, this.settings.axisTweaks, 'look');
     const assist = aimAssistScale(this.game);
-    this.lookX += look.lookX * assist;
-    this.lookY += look.lookY * assist;
+    this.lookX += tw.x * assist;
+    this.lookY += tw.y * assist;
   }
 
   _bindKeys() {
@@ -486,17 +576,26 @@ export class Input {
     const B = gp.buttons, A = gp.axes, M = this.padMap;
     const pressed = i => !!(B[i] && (B[i].pressed || B[i].value > 0.5));
     const val = i => B[i]?.value || 0;
-    const mv = moveFromPad(A[0] || 0, A[1] || 0);
+    const mapping = this.settings.padMapping || 'auto';
+    const sticks = readPadSticks(A, mapping);
+    this._padMapping = sticks.mapping;
+    this._lastPadAxes = Array.from(A || []);
+    const dead = Number.isFinite(this.settings.padDeadzone) ? this.settings.padDeadzone : undefined;
+    const curve = Number.isFinite(this.settings.padCurve) ? this.settings.padCurve : undefined;
+    const mv0 = moveFromPad(sticks.lx, sticks.ly, dead, curve);
+    const mv = applyAxisTweaks(mv0.x, mv0.y, this.settings.axisTweaks, 'move');
     this.moveX = mv.x; this.moveY = mv.y;
     if (this.game.player) this.game.player.sprint = pressed(M.sprint) || mv.y > 0.9;
-    const look = lookFromPad(A[2] || 0, A[3] || 0, {
+    const look0 = lookFromPad(sticks.rx, sticks.ry, {
       sensitivity: this.settings.sensitivity || 1,
       adsSensitivity: this.settings.adsSensitivity || 0.7,
       ads: this.game.player?.ads || 0,
       invertY: this.settings.invertY === true,
+      dead,
     });
-    this.lookX += look.lookX;
-    this.lookY += look.lookY;
+    const look = applyAxisTweaks(look0.lookX, look0.lookY, this.settings.axisTweaks, 'look');
+    this.lookX += look.x;
+    this.lookY += look.y;
     this.fire = val(M.fire) > 0.2;
     const adsDown = val(M.ads) > 0.2;
     if (resolvedAdsMode(this.settings, this) === 'toggle') {
@@ -601,6 +700,30 @@ export class Input {
       this.lookX += this._gy;
       this.lookY += this._gp * (this.settings.invertY ? -1 : 1);
     });
+  }
+
+
+  debugState() {
+    const vv = (typeof visualViewport !== 'undefined') ? visualViewport : null;
+    let standalone = false;
+    try {
+      standalone = !!(navigator.standalone || window.matchMedia?.('(display-mode: standalone)').matches);
+    } catch {}
+    return {
+      angle: screenOrientationAngle(),
+      windowOrientation: (typeof window !== 'undefined') ? window.orientation : null,
+      visualViewport: vv ? { width: vv.width, height: vv.height, scale: vv.scale, offsetTop: vv.offsetTop, offsetLeft: vv.offsetLeft } : null,
+      standalone,
+      usePointer: !!this._usePointer,
+      useTouch: !!this._useTouch,
+      moveX: this.moveX, moveY: this.moveY,
+      lookX: this.lookX, lookY: this.lookY,
+      invertY: this.settings.invertY === true,
+      axisTweaks: { ...(this.settings.axisTweaks || {}) },
+      padMapping: this._padMapping || this.settings.padMapping || 'auto',
+      padAxes: this._lastPadAxes || [],
+      padConnected: !!this.padConnected,
+    };
   }
 
   applyLayout(preset) {

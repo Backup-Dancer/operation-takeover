@@ -1,6 +1,7 @@
-import { BUILD, TITLE } from './version.js?v=iv-4.1.1';
-import { Game } from './game.js?v=iv-4.1.1';
-import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.1';
+import { BUILD, TITLE } from './version.js?v=iv-4.1.2';
+import { Game } from './game.js?v=iv-4.1.2';
+import { attachFrontEnd } from './frontend/index.js?v=iv-4.1.2';
+import { mountInputTest, shouldOpenInputTest } from './input-test.js?v=iv-4.1.2';
 
 const meta = document.querySelector('meta[name=build]');
 if (meta && meta.content !== BUILD && !new URLSearchParams(location.search).get('v')) {
@@ -16,6 +17,7 @@ try {
   window.__IV = game;
   window.__IV_BUILD = BUILD;
   attachFrontEnd(game);
+  mountInputTest(game, { open: shouldOpenInputTest() });
   console.info(TITLE, BUILD);
 } catch (e) {
   console.error('boot failed', e);

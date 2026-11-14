@@ -1,4 +1,4 @@
-export { startMatch, attachMatchApi, normalizeMatchConfig, MatchHandle } from './api.js?v=iv-4.1.1';
+export { startMatch, attachMatchApi, normalizeMatchConfig, MatchHandle } from './api.js?v=iv-4.1.2';
 export {
   stickFromDelta, moveFromPad, lookFromDrag, lookFromPad,
   worldMove, applyLook, forwardFromYaw, rightFromYaw, directionAgrees,

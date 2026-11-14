@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.1';
-import { getOp, listSide } from './operators.js?v=iv-4.1.1';
-import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.1';
-import { isHostile } from './combat.js?v=iv-4.1.1';
-import { SPEED } from './config.js?v=iv-4.1.1';
-import { difficultyParams } from './difficulty.js?v=iv-4.1.1';
-import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt } from './match/vision.js?v=iv-4.1.1';
-import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.1';
+import { createOperatorMesh, attachWeaponToHand, tickOperator } from './models.js?v=iv-4.1.2';
+import { getOp, listSide } from './operators.js?v=iv-4.1.2';
+import { instWeapon, makeLoadout } from './weapons.js?v=iv-4.1.2';
+import { isHostile } from './combat.js?v=iv-4.1.2';
+import { SPEED } from './config.js?v=iv-4.1.2';
+import { difficultyParams } from './difficulty.js?v=iv-4.1.2';
+import { canSee, canHear, inBuilding, holdInteriorFor, pickSafeAttackSpawn, surfaceAt, inSpawnYard, isSpawnProtected, actionAge } from './match/vision.js?v=iv-4.1.2';
+import { gunfireAt, occludedBetween, footstep } from './audio.js?v=iv-4.1.2';
 
 export function spawnBots(game) {
   const bots = [];
@@ -169,8 +169,8 @@ function think(game, b, dt, dcfg) {
   }
 
   const hold = holdInteriorFor(game);
-  const actionAge = (game.time || 0) - (game.round?.actionAt || 0);
-  const stayIn = b.team === 'defend' && hold > 0 && actionAge < hold;
+  const age = actionAge(game);
+  const stayIn = b.team === 'defend' && hold > 0 && age >= 0 && age < hold;
   if (stayIn && !inBuilding(game.world, b.pos) && site) {
     goTo(game, b, site.plant.x, site.y ?? 0, site.plant.z);
     b.action = 'hold';
@@ -263,13 +263,12 @@ function shoot(game, b, dt, dcfg) {
   // Reaction delay starts from first sight, not from spawn.
   if (!b._sawAt) b._sawAt = game.time;
   if ((game.time - b._sawAt) < dcfg.react) return;
-  // Don't spawn-peek: defenders inside the hold window won't fire at targets still in a spawn yard.
+  if (isSpawnProtected(game, target)) return;
   const hold = holdInteriorFor(game);
-  const actionAge = (game.time || 0) - (game.round?.actionAt || 0);
-  if (b.team === 'defend' && target.team === 'attack' && !inBuilding(game.world, target.pos)) {
-    if (hold > 0 && actionAge < hold) return;
-    // No spawn peeking on any difficulty for the first few seconds.
-    if (actionAge < 4 && inSpawnYard(game, target)) return;
+  const age = actionAge(game);
+  if (b.team === 'defend' && target.team === 'attack') {
+    if (age >= 0 && age < hold && !inBuilding(game.world, target.pos)) return;
+    if (age >= 0 && age < hold && inSpawnYard(game, target)) return;
   }
   const now = game.time;
   const interval = 60 / ((b.weapon?.rpm || 600) * 0.7);
@@ -388,8 +387,3 @@ function tryObjective(game, b, dt) {
 
 export function botDifficulty(id) { return difficultyParams(id); }
 
-function inSpawnYard(game, pawn) {
-  const list = game.world?.spawns?.attack || [];
-  if (!pawn?.pos) return false;
-  return list.some(s => Math.hypot(pawn.pos.x - s.x, pawn.pos.z - s.z) < 5.5);
-}

@@ -55,11 +55,56 @@ export function canHear(game, viewer, target, dcfg) {
   return !!(moving || firing);
 }
 
-/** Seconds defenders must stay inside the building after action starts. */
+/** Seconds of invulnerability for attackers after ACTION starts. */
+export const SPAWN_PROTECT_SEC = 4;
+
+/** Defenders may not leave the building or fire at spawn yards for at least this long. */
+export const NO_SPAWN_PEEK_SEC = 12;
+
+/** Seconds since ACTION began, or -1 if action has not started. */
+export function actionAge(game) {
+  if (!game || game.round?.phase !== 'action') return -1;
+  const at = game.round?.actionAt;
+  if (at == null || !Number.isFinite(at)) return -1;
+  return (game.time || 0) - at;
+}
+
+export function isSpawnProtected(game, pawn) {
+  if (!pawn || pawn.team !== 'attack') return false;
+  if (pawn.spawnProtectUntil != null && (game.time || 0) < pawn.spawnProtectUntil) return true;
+  const age = actionAge(game);
+  return age >= 0 && age < SPAWN_PROTECT_SEC;
+}
+
+/** Seconds defenders must stay inside the building after action starts.
+ *  Recruit / Regular stay at 15s; every difficulty is floored at
+ *  NO_SPAWN_PEEK_SEC so Veteran/Elite cannot peek yards at t=0. */
 export function holdInteriorFor(game) {
-  const d = game.cfg?.difficulty;
-  if (d === 'recruit' || d === 'regular') return 15;
-  return 0;
+  const d = String(game?.cfg?.difficulty || '').toLowerCase();
+  const listed = (d === 'recruit' || d === 'regular') ? 15 : 0;
+  return Math.max(listed, NO_SPAWN_PEEK_SEC);
+}
+
+/** True when a pawn is still on an attacker approach / spawn yard. */
+export function inSpawnYard(game, pawn) {
+  const list = game?.world?.spawns?.attack || [];
+  if (!pawn?.pos) return false;
+  if (list.some(s => Math.hypot(pawn.pos.x - s.x, pawn.pos.z - s.z) < 8.5)) return true;
+  if (inBuilding(game.world, pawn.pos)) return false;
+  const b = game.world?.bounds?.building;
+  if (!b) return false;
+  const mx = pawn.pos.x < b.x0 ? b.x0 - pawn.pos.x : (pawn.pos.x > b.x1 ? pawn.pos.x - b.x1 : 0);
+  const mz = pawn.pos.z < b.z0 ? b.z0 - pawn.pos.z : (pawn.pos.z > b.z1 ? pawn.pos.z - b.z1 : 0);
+  return Math.hypot(mx, mz) > 3.0;
+}
+
+function pushAwayFromBuilding(world, s, dist = 3.2) {
+  const b = world?.bounds?.building;
+  if (!b || !s) return s;
+  const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
+  const dx = (s.x || 0) - cx, dz = (s.z || 0) - cz;
+  const len = Math.hypot(dx, dz) || 1;
+  return { ...s, x: s.x + (dx / len) * dist, z: s.z + (dz / len) * dist };
 }
 
 /** Pick an attacker spawn that has no LOS from defender positions or
@@ -72,25 +117,31 @@ export function pickSafeAttackSpawn(game, i = 0, rng = Math.random) {
   const scored = list.map((s, idx) => {
     let score = 0;
     const eye = 1.5;
+    let defenderLos = false, windowLos = false;
     for (const d of defenders) {
       const los = hasLOS(game.world, d.pos.x, (d.pos.y || 0) + 1.45, d.pos.z, s.x, eye, s.z, 10);
       const dist = Math.hypot(d.pos.x - s.x, d.pos.z - s.z);
-      if (los && dist < 28) score += 40 + Math.max(0, 28 - dist);
+      if (los && dist < 28) { score += 40 + Math.max(0, 28 - dist); defenderLos = true; }
       else score -= 2;
     }
     for (const w of windows) {
       const los = hasLOS(game.world, w.x, (w.y || 1.5) + 0.4, w.z, s.x, eye, s.z, 8);
       const dist = Math.hypot((w.x || 0) - s.x, (w.z || 0) - s.z);
-      if (los && dist < 24) score += 25 + Math.max(0, 24 - dist);
+      if (los && dist < 24) { score += 25 + Math.max(0, 24 - dist); windowLos = true; }
     }
     if (s.cover) score -= 8;
-    return { s, idx, score };
+    return { s, idx, score, defenderLos, windowLos };
   });
-  scored.sort((a, b) => a.score - b.score || a.idx - b.idx);
+  const safe = scored.filter(r => !r.defenderLos);
+  const pool = safe.length ? safe : scored;
+  pool.sort((a, b) => a.score - b.score || a.idx - b.idx);
   // Rotate among the three safest so seeds spread players out.
-  const pick = scored[Math.abs(i) % Math.min(3, scored.length)] || scored[0];
+  const pick = pool[Math.abs(i) % Math.min(3, pool.length)] || pool[0];
+  let chosen = pick.s;
+  // If every spawn still has window or defender LOS, push it further off the wall.
+  if (pick.defenderLos || pick.windowLos) chosen = pushAwayFromBuilding(game.world, chosen, 3.2);
   const jitter = (rng() - 0.5) * 0.6;
-  return { x: pick.s.x + jitter, y: pick.s.y || 0, z: pick.s.z, yaw: pick.s.yaw || 0, id: pick.s.id };
+  return { x: chosen.x + jitter, y: chosen.y || 0, z: chosen.z, yaw: chosen.yaw || 0, id: chosen.id, safe: !pick.defenderLos };
 }
 
 export function surfaceAt(world, pos) {
