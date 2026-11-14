@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Takeover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0b0c0e">
+<meta name="build" content="iv-4.1.2-t3">
+<title>Operation: Takeover</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="assets/icons/favicon.png">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<link rel="stylesheet" href="css/style.css?v=iv-4.1.2-t3">
+<link rel="stylesheet" href="css/frontend.css?v=iv-4.1.2-t3">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/three.module.js?v=iv-4.1.2-t3",
+    "three/addons/": "./vendor/three/addons/"
+  }
+}
+</script>
+<script>
+if (typeof structuredClone !== 'function') {
+  window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
+}
+window.addEventListener('error', function (e) { window.__ivShowError && window.__ivShowError((e && e.message) || 'Script error'); });
+window.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; window.__ivShowError && window.__ivShowError((r && (r.stack || r.message)) || String(r)); });
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(new URL('sw.js', document.baseURI), { scope: './' }).catch(function () {});
+}
+</script>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="vignette"></div>
+<div id="scope-overlay" class="hidden">
+  <div class="scope-glass"></div>
+  <div class="scope-reticle" id="scope-reticle"></div>
+</div>
+<div id="flash-white"></div>
+<div id="damage-flash"></div>
+<div id="drone-ov" class="hidden">
+  <div class="scan"></div>
+  <div class="feed-static"></div>
+  <div id="drone-label">POSITION SCOUTS</div>
+  <button type="button" class="feed-arrow left" data-ctl="cycleback" aria-label="Previous scout">‹</button>
+  <button type="button" class="feed-arrow right" data-ctl="cycle" aria-label="Next scout">›</button>
+</div>
+<div id="cctv-ov" class="hidden">
+  <div class="cctv-scan"></div>
+  <div class="cctv-vignette"></div>
+  <div class="feed-edge-static"></div>
+  <div class="feed-static"></div>
+  <div id="cctv-name">CAM</div>
+  <button type="button" class="feed-arrow left" data-ctl="cycleback" aria-label="Previous camera">‹</button>
+  <button type="button" class="feed-arrow right" data-ctl="cycle" aria-label="Next camera">›</button>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div id="hud-compass"><span class="hdg-letter">N</span><span class="hdg-ticks"></span></div>
+    <div id="hud-top-row">
+      <div id="hud-squad-atk" class="squad-col atk"></div>
+      <div id="hud-score"><span id="hud-score-atk">0</span><span class="sep">–</span><span id="hud-score-def">0</span></div>
+      <div id="hud-clock">
+        <div id="hud-timer">0:45</div>
+        <div id="hud-phase">PREP</div>
+      </div>
+      <div id="hud-squad-def" class="squad-col def"></div>
+    </div>
+  </div>
+  <div id="hud-room"></div>
+  <div id="hud-obj">Secure a site and plant the defuser.</div>
+  <div id="hud-health">
+    <img id="hud-op-icon" alt="" width="36" height="36">
+    <div class="hp-wrap"><div class="bar"><i id="hp-fill"></i></div><span id="hp-n">100</span></div>
+  </div>
+  <div id="hud-ammo"><b id="ammo-clip">30</b><span id="ammo-res">/ 150</span><small id="ammo-wpn">CARBINE</small></div>
+  <div id="hud-toast"></div>
+  <div id="hud-scorepops"></div>
+  <div id="hud-scanning" class="hidden">SCANNING…</div>
+  <div id="hud-countdown"></div>
+  <div id="hud-marks"></div>
+  <div id="hud-callouts"></div>
+  <div id="hud-ring" class="hidden"><b>4</b></div>
+  <div id="hud-won" class="hidden"></div>
+  <div id="hud-elim" class="hidden"></div>
+  <div id="hud-matchcard" class="hidden"></div>
+  <div id="crosshair" class="ch-cross"></div>
+  <div id="hit-marker" class="hidden"></div>
+  <div id="hud-downed" class="hidden">DOWNED — hold close to a teammate to be revived</div>
+  <button type="button" id="hud-prompt" class="hidden" aria-label="Interact"></button>
+  <div id="hud-detonate" class="hidden">
+    <div class="det-title">DETONATOR</div>
+    <div id="det-list"></div>
+  </div>
+</div>
+
+<div id="touch" class="hidden">
+
+  <svg class="ticon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <symbol id="ic-fire" viewBox="0 0 32 32"><path d="M14 4l2 8-3 1 7 15-2-8 3-1z" fill="currentColor" stroke="none"/><circle cx="22" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-ads" viewBox="0 0 32 32"><circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 5v4M16 23v4M5 16h4M23 16h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="16" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="ic-crouch" viewBox="0 0 32 32"><path d="M14 6a3 3 0 1 1 0.2 0M13 10l-2 6 4 2 3-4 4 8M11 16l-4 6M15 18v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-prone" viewBox="0 0 32 32"><path d="M7 22h16M8 22l4-3 6 1 5-4M9 19a2 2 0 1 0 0.2 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-reload" viewBox="0 0 32 32"><path d="M8 16a8 8 0 1 1 2.4 5.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 22v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-leanl" viewBox="0 0 32 32"><path d="M20 6l-10 10 10 10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-leanr" viewBox="0 0 32 32"><path d="M12 6l10 10-10 10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-gadget" viewBox="0 0 32 32"><path d="M16 5l9 5v10l-9 5-9-5V10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="ic-util" viewBox="0 0 32 32"><rect x="9" y="6" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 12h6M13 16h6M13 20h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-ping" viewBox="0 0 32 32"><path d="M16 27s-8-8.2-8-13a8 8 0 1 1 16 0c0 4.8-8 13-8 13z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="14" r="2.4" fill="currentColor"/></symbol>
+    <symbol id="ic-sprint" viewBox="0 0 32 32"><path d="M18 6a2.4 2.4 0 1 1 .2 0M10 14l6-2 3 4 5-1M16 12l-2 8 5 5M14 20l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-drone" viewBox="0 0 32 32"><rect x="8" y="10" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="16" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 14H5m22 0h-3M10 10V7m12 3V7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="ic-cam" viewBox="0 0 32 32"><rect x="5" y="10" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M21 14l6-3v10l-6-3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-swap" viewBox="0 0 32 32"><path d="M8 12h16l-5-5M24 20H8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-pause" viewBox="0 0 32 32"><path d="M11 8v16M21 8v16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="ic-score" viewBox="0 0 32 32"><path d="M8 9h16M8 16h16M8 23h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-action" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 10v8l5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-rappel" viewBox="0 0 32 32"><path d="M16 4v24M12 10l4-3 4 3M12 22c2 3 6 3 8 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-detonate" viewBox="0 0 32 32"><circle cx="16" cy="18" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 10V6m-3 1 1.5 3M19 7l-1.5 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-jump" viewBox="0 0 32 32"><path d="M8 24h16M10 18l6-10 6 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-scan" viewBox="0 0 32 32"><circle cx="16" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 4v4M16 24v4M4 16h4M24 16h4M16 16l6-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="ic-switch" viewBox="0 0 32 32"><path d="M7 16h18M20 10l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-exit" viewBox="0 0 32 32"><path d="M10 8h12v16H10M14 16h12M22 12l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+  <div id="stick-base" class="tctl" data-ctl="stick"><div id="stick-knob"></div></div>
+  <button id="tb-sprint" class="tbtn" data-ctl="sprint" aria-label="SPRINT"><svg class="ticon" aria-hidden="true"><use href="#ic-sprint"/></svg><span class="tlbl">SPRINT</span></button>
+  <div id="look-zone"></div>
+  <button id="tb-fire" class="tbtn tbtn-fire" data-ctl="fire" aria-label="FIRE"><svg class="ticon" aria-hidden="true"><use href="#ic-fire"/></svg><span class="tlbl">FIRE</span></button>
+  <button id="tb-fire-l" class="tbtn tbtn-fire-l hidden" data-ctl="fireL" aria-label="FIRE"><svg class="ticon" aria-hidden="true"><use href="#ic-fire"/></svg><span class="tlbl">FIRE</span></button>
+  <button id="tb-ads" class="tbtn" data-ctl="ads" aria-label="ADS"><svg class="ticon" aria-hidden="true"><use href="#ic-ads"/></svg><span class="tlbl">ADS</span></button>
+  <button id="tb-crouch" class="tbtn" data-ctl="crouch" aria-label="CROUCH"><svg class="ticon" aria-hidden="true"><use href="#ic-crouch"/></svg><span class="tlbl">CROUCH</span></button>
+  <button id="tb-prone" class="tbtn" data-ctl="prone" aria-label="PRONE"><svg class="ticon" aria-hidden="true"><use href="#ic-prone"/></svg><span class="tlbl">PRONE</span></button>
+  <button id="tb-leanl" class="tbtn tbtn-lean" data-ctl="leanL" aria-label="LEAN LEFT"><svg class="ticon" aria-hidden="true"><use href="#ic-leanl"/></svg><span class="tlbl">LEAN LEFT</span></button>
+  <button id="tb-leanr" class="tbtn tbtn-lean" data-ctl="leanR" aria-label="LEAN RIGHT"><svg class="ticon" aria-hidden="true"><use href="#ic-leanr"/></svg><span class="tlbl">LEAN RIGHT</span></button>
+  <button id="tb-reload" class="tbtn" data-ctl="reload" aria-label="RELOAD"><svg class="ticon" aria-hidden="true"><use href="#ic-reload"/></svg><span class="tlbl">RELOAD</span></button>
+  <button id="tb-gadget" class="tbtn tbtn-gad" data-ctl="gadget" aria-label="GADGET"><svg class="ticon" aria-hidden="true"><use href="#ic-gadget"/></svg><span class="tlbl">GADGET</span></button>
+  <button id="tb-gadget2" class="tbtn" data-ctl="gadget2" aria-label="UTIL"><svg class="ticon" aria-hidden="true"><use href="#ic-util"/></svg><span class="tlbl">UTIL</span></button>
+  <button id="tb-drone" class="tbtn" data-ctl="drone" aria-label="DRONE"><svg class="ticon" aria-hidden="true"><use href="#ic-drone"/></svg><span class="tlbl">DRONE</span></button>
+  <button id="tb-cams" class="tbtn hidden" data-ctl="cams" aria-label="CAM"><svg class="ticon" aria-hidden="true"><use href="#ic-cam"/></svg><span class="tlbl">CAM</span></button>
+  <button id="tb-interact" class="tbtn tbtn-act" data-ctl="interact" aria-label="ACTION"><svg class="ticon" aria-hidden="true"><use href="#ic-action"/></svg><span class="tlbl tlbl-show">ACTION</span></button>
+  <button id="tb-swap" class="tbtn" data-ctl="swap" aria-label="SWAP"><svg class="ticon" aria-hidden="true"><use href="#ic-swap"/></svg><span class="tlbl">SWAP</span></button>
+  <button id="tb-ping" class="tbtn" data-ctl="ping" aria-label="PING"><svg class="ticon" aria-hidden="true"><use href="#ic-ping"/></svg><span class="tlbl">PING</span></button>
+  <button id="tb-rappel" class="tbtn tbtn-act hidden" data-ctl="rappel" aria-label="RAPPEL"><svg class="ticon" aria-hidden="true"><use href="#ic-rappel"/></svg><span class="tlbl tlbl-show">RAPPEL</span></button>
+  <button id="tb-detonate" class="tbtn tbtn-det hidden" data-ctl="detonate" aria-label="DETONATE"><svg class="ticon" aria-hidden="true"><use href="#ic-detonate"/></svg><span class="tlbl tlbl-show">DETONATE</span></button>
+  <button id="tb-pause" class="tbtn tbtn-top" data-ctl="pause" aria-label="PAUSE"><svg class="ticon" aria-hidden="true"><use href="#ic-pause"/></svg><span class="tlbl">PAUSE</span></button>
+  <button id="tb-score" class="tbtn tbtn-top" data-ctl="score" aria-label="TAB"><svg class="ticon" aria-hidden="true"><use href="#ic-score"/></svg><span class="tlbl">TAB</span></button>
+  <button id="tb-hop" class="tbtn tbtn-feed hidden" data-ctl="hop" aria-label="JUMP"><svg class="ticon" aria-hidden="true"><use href="#ic-jump"/></svg><span class="tlbl tlbl-show">JUMP</span></button>
+  <button id="tb-scan" class="tbtn tbtn-feed hidden" data-ctl="ping" aria-label="SCAN"><svg class="ticon" aria-hidden="true"><use href="#ic-scan"/></svg><span class="tlbl tlbl-show">SCAN</span></button>
+  <button id="tb-switch" class="tbtn tbtn-feed hidden" data-ctl="cycle" aria-label="SWITCH"><svg class="ticon" aria-hidden="true"><use href="#ic-switch"/></svg><span class="tlbl tlbl-show">SWITCH</span></button>
+  <button id="tb-feed-exit" class="tbtn tbtn-feed hidden" data-ctl="exitfeed" aria-label="EXIT"><svg class="ticon" aria-hidden="true"><use href="#ic-exit"/></svg><span class="tlbl tlbl-show">EXIT</span></button>
+  <button id="tb-cycle-l" class="tbtn tbtn-feed feed-arrow left hidden" data-ctl="cycleback" aria-label="Previous feed">‹</button>
+  <button id="tb-cycle-r" class="tbtn tbtn-feed feed-arrow right hidden" data-ctl="cycle" aria-label="Next feed">›</button>
+</div>
+
+<div id="menus">
+  <section id="scr-boot" class="screen fe-screen fe-boot">
+    <img class="wordmark" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="400" height="117">
+    <p class="tag">Hold the site. Break the line.</p>
+    <p class="tip" id="boot-tip">Landscape. iPhone or a controller. Tap to start.</p>
+    <button class="btn primary fe-play" data-fe="boot" data-action="boot" data-nav>TAP TO START</button>
+    <p class="fine">Add to Home Screen for fullscreen play.</p>
+  </section>
+
+  <div id="op-showcase" class="op-showcase fe-showcase hidden" aria-label="Operator showcase"></div>
+  <div id="fe-scene-bg" class="fe-scene-bg hidden" aria-hidden="true"><i></i></div>
+
+  <section id="scr-main" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="settings" data-nav aria-label="Settings">⚙</button>
+        <div class="fe-level"><span class="pip" data-bind="level">8</span><b data-bind="callsign">WARRANT</b></div>
+      </div>
+      <div class="fe-top-right">
+        <div class="fe-cash">
+          <span><i class="dot marks"></i><b data-bind="marks">1,840</b></span>
+          <span><i class="dot chits"></i><b data-bind="chits">6</b></span>
+        </div>
+        <button class="fe-icon-btn" data-fe="mail" data-nav aria-label="Dispatches">✉</button>
+        <button class="fe-icon-btn" data-fe="friends" data-nav aria-label="Fireteam">☺</button>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" id="tab-missions" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" id="tab-free" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" id="tab-shop" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" id="tab-ops" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div class="fe-stats">
+      <div><small>MATCHES</small><b id="stat-matches">0</b></div>
+      <div><small>ROUNDS WON</small><b id="stat-rounds">0</b></div>
+      <div><small>WIN RATE</small><b id="stat-winrate">0%</b></div>
+      <div><small>MVP</small><b id="stat-mvp">0</b></div>
+    </div>
+    <div class="fe-play-block">
+      <div class="op">
+        <b id="main-op-name">FORGE</b>
+        <span id="main-op-level">LVL 8</span>
+        · <span id="main-op-load">C-16 CARBINE</span>
+      </div>
+      <div class="row">
+        <button class="btn ghost" data-fe="show" data-v="gunsmith" data-nav>LOADOUT</button>
+        <button class="btn fe-play" data-fe="play" data-nav>PLAY</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-lobby" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <div class="fe-level"><span class="pip" data-bind="level">8</span><b>FIRETEAM</b></div>
+      </div>
+      <div class="fe-top-right">
+        <div class="fe-cash">
+          <span><i class="dot marks"></i><b data-bind="marks">1,840</b></span>
+          <span><i class="dot chits"></i><b data-bind="chits">6</b></span>
+        </div>
+      </div>
+    </div>
+    <aside id="lobby-missions" class="fe-lobby-left"></aside>
+    <div class="fe-lobby-center">
+      <div id="lobby-slots"></div>
+    </div>
+    <div class="fe-lobby-bottom">
+      <div>
+        <div id="lobby-side" class="row"></div>
+        <div id="lobby-diff" class="row" style="margin-top:6px"></div>
+        <div id="lobby-map" style="margin-top:6px"></div>
+        <div id="lobby-modes" style="margin-top:6px"></div>
+      </div>
+      <div id="lobby-start-wrap">
+        <div id="lobby-start-caption">BOMB RUSH · Best of 3</div>
+        <button class="btn fe-start" data-fe="start" data-nav>START</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-matchmaking" class="fe-screen hidden">
+    <div class="fe-kicker">MATCHMAKING</div>
+    <div id="mm-timer">0:00</div>
+    <div id="mm-est">EST. WAIT  0:12</div>
+    <p id="mm-detail">Halcyon Press · BOMB RUSH · Best of 3</p>
+    <button class="btn ghost" data-fe="cancel-queue" data-nav>CANCEL</button>
+  </section>
+
+  <section id="scr-matchstart" class="fe-screen hidden">
+    <div class="ms-card">
+      <h2 id="ms-map">Halcyon Press</h2>
+      <div id="ms-mode">BOMB RUSH — Best of 3</div>
+      <div id="ms-score">0 — 0</div>
+      <div class="ms-teams">
+        <div id="ms-atk"></div>
+        <div id="ms-def"></div>
+      </div>
+      <div class="ms-load">
+        <div class="fe-bar"><i id="ms-fill"></i></div>
+        <p class="fine" id="ms-load">Loading match…</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-operators" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">OPERATORS</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab on" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div class="fe-drawer fe-ops-left">
+      <div class="fe-side-toggle" role="tablist" aria-label="Faction">
+        <button class="chip on" id="ops-side-atk" data-fe="set-side" data-v="attack" data-nav>ASHLINE</button>
+        <button class="chip" id="ops-side-def" data-fe="set-side" data-v="defend" data-nav>HOLDFAST</button>
+      </div>
+      <div id="fe-op-grid"></div>
+    </div>
+    <aside class="fe-drawer fe-ops-right" id="fe-op-detail"></aside>
+  </section>
+
+  <section id="scr-gunsmith" class="fe-screen hidden">
+    <div class="gs-wrap">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <button class="btn ghost" data-fe="back" data-nav>BACK</button>
+        <h2 id="gs-title">GUNSMITH</h2>
+        <span></span>
+      </div>
+      <div id="gunsmith-body"></div>
+    </div>
+  </section>
+
+  <section id="scr-missions" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">MISSIONS</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab on" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div id="missions-body"></div>
+  </section>
+
+  <section id="scr-rewards" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">FIELD PASS</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab on" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div id="rewards-body"></div>
+  </section>
+
+  <section id="scr-shop" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="to-main" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">SHOP</b>
+      </div>
+    </div>
+    <nav class="fe-tabs" aria-label="Main">
+      <button class="fe-tab" data-fe="tab" data-v="missions" data-nav>MISSIONS</button>
+      <button class="fe-tab" data-fe="tab" data-v="rewards" data-nav>FREE</button>
+      <button class="fe-tab on" data-fe="tab" data-v="shop" data-nav>SHOP</button>
+      <button class="fe-tab" data-fe="tab" data-v="operators" data-nav>OPERATORS</button>
+    </nav>
+    <div id="shop-body"></div>
+  </section>
+
+  <section id="scr-practice" class="fe-screen hidden">
+    <div class="fe-top">
+      <div class="fe-top-left">
+        <button class="fe-icon-btn" data-fe="back" data-nav aria-label="Back">‹</button>
+        <b style="letter-spacing:.1em">PRACTICE</b>
+      </div>
+    </div>
+    <div id="practice-body"></div>
+    <div class="fe-end-actions" style="position:absolute;right:calc(12px + var(--sr));bottom:calc(10px + var(--sb))">
+      <button class="btn fe-start" data-fe="practice-go" data-nav>START</button>
+    </div>
+  </section>
+
+  <section id="scr-slam" class="fe-screen hidden">
+    <button class="fe-slam-hit" data-fe="advance-end" data-nav aria-label="Continue"></button>
+    <span id="end-slash" class="end-slash hidden" aria-hidden="true"></span>
+    <h1 id="slam-word">VICTORY</h1>
+    <p id="slam-sub">MATCH WIN</p>
+    <p id="slam-score">2 — 1</p>
+    <p class="fine">TAP TO CONTINUE</p>
+  </section>
+
+  <section id="scr-highlights" class="fe-screen hidden">
+    <h2 id="hl-title">MATCH WIN</h2>
+    <div id="hl-lineup"></div>
+    <div class="fe-end-actions">
+      <button class="btn primary" data-fe="advance-end" data-nav>CONTINUE</button>
+    </div>
+  </section>
+
+  <section id="scr-postscore" class="fe-screen hidden">
+    <div id="ps-meta">
+      <b id="ps-score">2 — 1</b>
+      <span>MVP <b id="ps-mvp">WARRANT</b></span>
+    </div>
+    <div id="postscore-body"></div>
+    <div class="fe-end-actions">
+      <button class="btn primary" data-fe="advance-end" data-nav>CONTINUE</button>
+    </div>
+  </section>
+
+  <section id="scr-progress" class="fe-screen hidden">
+    <div id="progress-body"></div>
+    <div class="fe-end-actions">
+      <button class="btn ghost" data-fe="to-lobby" data-nav>BACK TO LOBBY</button>
+      <button class="btn fe-start" data-fe="next-game" data-nav>NEXT GAME</button>
+    </div>
+  </section>
+
+<section id="scr-settings" class="screen hidden">
+    <h2>Settings</h2>
+    <div id="settings-body" class="settings-scroll"></div>
+    <div class="row">
+      <button class="btn" data-action="back">BACK</button>
+    </div>
+  </section>
+
+  <section id="scr-controls" class="screen hidden">
+    <h2>Controls</h2>
+    <div class="chips" id="ctrl-tabs">
+      <button class="chip on" data-action="ctrl-tab" data-v="touch">TOUCH</button>
+      <button class="chip" data-action="ctrl-tab" data-v="pad">CONTROLLER</button>
+      <button class="chip" data-action="ctrl-tab" data-v="kbm">KEYBOARD</button>
+    </div>
+    <div id="ctrl-body" class="settings-scroll"></div>
+    <div class="row">
+      <button class="btn" data-action="goto" data-arg="hudedit">EDIT HUD LAYOUT</button>
+      <button class="btn" data-action="back">BACK</button>
+    </div>
+  </section>
+
+  <section id="scr-hudedit" class="screen hidden">
+    <h2>HUD Layout</h2>
+    <p class="fine">Drag a button to move it. Use the corners to resize. Layout is saved on this device.</p>
+    <div class="row wrap">
+      <button class="btn" data-action="hud-reset">RESET DEFAULT</button>
+      <button class="btn" data-action="set" data-k="leftFire" data-v="toggle">TOGGLE LEFT FIRE</button>
+      <button class="btn primary" data-action="hud-save">SAVE</button>
+      <button class="btn" data-action="back">DONE</button>
+    </div>
+  </section>
+
+  <section id="scr-pause" class="screen hidden dim">
+    <h2>Paused</h2>
+    <div id="pause-score" class="scoreboard"></div>
+    <div class="col">
+      <button class="btn primary" data-action="resume">RESUME</button>
+      <button class="btn" data-action="goto" data-arg="settings">SETTINGS</button>
+      <button class="btn" data-action="quit">QUIT TO MENU</button>
+    </div>
+  </section>
+
+  <section id="scr-score" class="screen hidden dim">
+    <h2>Scoreboard</h2>
+    <div id="board-body" class="scoreboard"></div>
+    <div class="row"><button class="btn primary" data-action="close-score">CLOSE</button></div>
+  </section>
+
+  <section id="scr-credits" class="screen hidden">
+    <img class="wordmark sm" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="280" height="82">
+    <h2>Credits</h2>
+    <div class="credits">
+      <p><b>Operation: Takeover</b> is an original 5v5 tactical attack and defense game.</p>
+      <p>Operators, map, weapons, and audio direction are original. Third-party assets are used only under recorded free or CC0 licenses, archived with the project.</p>
+      <p>Asset licenses, including the CC0 bases and materials used in the realism weapons pack, are recorded in <a href="credits/licenses.md">credits/licenses.md</a>. Plain-text license transcripts ship in <a href="credits/licenses/">credits/licenses/</a>.</p>
+      <p>Map: Halcyon Press. Build <span id="credits-build"></span>.</p>
+      <p class="fine">This title is not affiliated with any other game.</p>
+    </div>
+    <div class="row"><button class="btn primary" data-action="back">BACK</button></div>
+  </section>
+</div>
+
+<div id="loading" class="hidden">
+  <div class="load-card">
+    <img class="wordmark sm" src="assets/icons/wordmark.png" alt="Operation: Takeover" width="240" height="70">
+    <h2 id="load-title">Loading Halcyon Press</h2>
+    <div class="load-bar"><i id="load-fill"></i></div>
+    <p id="load-msg">Preparing map…</p>
+    <p id="load-tip" class="tip"></p>
+  </div>
+</div>
+
+<div id="rotate">
+  <div>Rotate your phone to landscape</div>
+  <p class="fine">Operation: Takeover is designed for landscape play.</p>
+  <button type="button" class="btn" id="rotate-continue">CONTINUE ANYWAY</button>
+</div>
+
+<div id="iv-error" hidden></div>
+
+<script>
+/* iv-3.0.1 port: show WebKit/module failures on screen; never leave TAP TO START dead. */
+(function () {
+  if (typeof structuredClone !== 'function') {
+    window.structuredClone = function (v) { return JSON.parse(JSON.stringify(v)); };
+  }
+  var box = document.getElementById('iv-error');
+  function show(msg) {
+    if (!box) return;
+    box.hidden = false;
+    box.textContent = String(msg || 'Unknown error');
+    box.style.display = 'block';
+  }
+  window.__ivShowError = show;
+  window.addEventListener('error', function (e) {
+    var m = (e && e.message) || 'Script error';
+    if (e && e.filename) m += '\n' + e.filename + (e.lineno ? (':' + e.lineno) : '');
+    show(m);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    show((r && (r.stack || r.message)) || String(r) || 'Unhandled promise rejection');
+  });
+  function dismissRotate() {
+    var el = document.getElementById('rotate');
+    if (el) el.classList.add('dismissed');
+  }
+  var cont = document.getElementById('rotate-continue');
+  if (cont) {
+    cont.addEventListener('click', dismissRotate);
+    cont.addEventListener('pointerup', function (e) { e.preventDefault(); dismissRotate(); });
+  }
+  function syncRotate() {
+    if (window.innerWidth >= window.innerHeight) dismissRotate();
+  }
+  syncRotate();
+  window.addEventListener('resize', syncRotate);
+  window.addEventListener('orientationchange', function () { setTimeout(syncRotate, 50); });
+  setTimeout(function () {
+    if (!window.__game) show('Game script failed to load. Screenshot this message and send it over.');
+  }, 12000);
+})();
+</script>
+
+<script type="module" src="js/main.js?v=iv-4.1.2-t3"></script>
+</body>
+</html>

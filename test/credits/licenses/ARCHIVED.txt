@@ -1,0 +1,5 @@
+Archived 2026-11-09T20:03:02Z
+Quaternius Universal Base Characters: https://quaternius.com/packs/universalbasecharacters.html — pack page states CC0 (https://creativecommons.org/publicdomain/zero/1.0/).
+Quaternius Universal Animation Library: https://quaternius.com/packs/universalanimationlibrary.html — pack page states CC0.
+Downloads are served via itch.io (quaternius.itch.io/universal-base-characters and universal-animation-library). Place extracted GLB/FBX under assets-src/quaternius/.
+App Dev Assistant original operator/weapon glTF should land on branch assist/models under assets-src/operators and assets-src/weapons.

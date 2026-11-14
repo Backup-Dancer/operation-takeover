@@ -1,0 +1,222 @@
+{
+  "version": 2,
+  "style": {
+    "look": "grounded realistic tactical",
+    "framing": "chest-up three-quarter",
+    "backdrop": "neutral dark studio",
+    "factionTints": {
+      "ashline": "subtle warm copper/graphite",
+      "holdfast": "subtle muted forest-green / violet-charcoal"
+    },
+    "lighting": "soft cinematic key from upper left, gentle rim",
+    "constraints": "original likenesses; no real people; no real agency patches/logos/text; no Siege resemblance",
+    "notes": "v2 redesigns briar/glyph/shade for distinct silhouettes; forge/quill/marrow/rivet/husk unchanged from v1"
+  },
+  "operators": [
+    {
+      "id": "forge",
+      "name": "FORGE",
+      "faction": "ashline",
+      "side": "attack",
+      "accent": "#c67636",
+      "card": {
+        "path": "assets/ui/operators/forge_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 18142,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/forge_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 59378,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/forge_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of FORGE (Callen Varga), 38 Czech hard-breacher, short cropped dark hair, weathered face, graphite plate carrier with copper heat-shield pauldrons, thermal-lance cases on back, scar on left forearm, soot-dark gloves. Dark studio backdrop with subtle warm copper Ashline tint. No text/logos/patches. Original gear only.",
+      "portraitVersion": 1
+    },
+    {
+      "id": "quill",
+      "name": "QUILL",
+      "faction": "ashline",
+      "side": "attack",
+      "accent": "#e8c696",
+      "card": {
+        "path": "assets/ui/operators/quill_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 23958,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/quill_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 60040,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/quill_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of QUILL (In\u00e9s Mora), 29 Spanish flash-entry, short dark hair under low-profile headset, lean silhouette, graphite/sand-cream accents, holding slim needle-like flash dart with more thin metal shafts in chest loops (not ammo cartridges). Dark studio backdrop with subtle warm copper Ashline tint. No text/logos/patches.",
+      "portraitVersion": 1
+    },
+    {
+      "id": "marrow",
+      "name": "MARROW",
+      "faction": "ashline",
+      "side": "attack",
+      "accent": "#8fb56a",
+      "card": {
+        "path": "assets/ui/operators/marrow_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 17288,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/marrow_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 56832,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/marrow_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of MARROW (Theo Okonkwo), 34 Nigerian intel specialist, short natural hair, thin beard, dark carrier with olive cord accents, forearm drone controller, folded drone on back. Dark studio backdrop with subtle warm copper Ashline tint. No text/logos/patches.",
+      "portraitVersion": 1
+    },
+    {
+      "id": "glyph",
+      "name": "GLYPH",
+      "faction": "ashline",
+      "side": "attack",
+      "accent": "#7eb0e0",
+      "card": {
+        "path": "assets/ui/operators/glyph_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 17826,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/glyph_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 58590,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/glyph_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of GLYPH (Sora Han), tall lean Ashline anti-gadget, shaved head, half-face respirator, tinted goggles pushed up, matte cobalt circuit trim (not glowing), rugged tech-pouch silhouette with EMP discs. Dark graphite backdrop with warm copper Ashline tint. No text/logos/patches.",
+      "portraitVersion": 2
+    },
+    {
+      "id": "rivet",
+      "name": "RIVET",
+      "faction": "holdfast",
+      "side": "defend",
+      "accent": "#9aa4b2",
+      "card": {
+        "path": "assets/ui/operators/rivet_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 20812,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/rivet_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 61416,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/rivet_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of RIVET (Mara Solis), 41 Mexican anchor, short greying hair under bump helmet, stoic weathered face, steel-grey heavy plate, reinforced shoulders, shutter frames on back, no weapon in frame. Dark charcoal backdrop with subtle muted forest-green Holdfast tint. No text/logos/patches.",
+      "portraitVersion": 1
+    },
+    {
+      "id": "briar",
+      "name": "BRIAR",
+      "faction": "holdfast",
+      "side": "defend",
+      "accent": "#6a8f4a",
+      "card": {
+        "path": "assets/ui/operators/briar_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 24828,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/briar_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 60192,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/briar_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of BRIAR (Liora Vesek), weathered early-40s Holdfast trapper, stocky freckled build, short auburn copper-red undercut, tan boonie hat, earthy green/tan kit with wire spools and cutter on chest rig. Dark charcoal backdrop with muted forest-green Holdfast tint. No text/logos/patches.",
+      "portraitVersion": 2
+    },
+    {
+      "id": "husk",
+      "name": "HUSK",
+      "faction": "holdfast",
+      "side": "defend",
+      "accent": "#b08a5a",
+      "card": {
+        "path": "assets/ui/operators/husk_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 19622,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/husk_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 58856,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/husk_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of HUSK (Jonah Reed), 26 Detroit roamer, messy dark hair, cocky half-grin, minimal plate, tan scarf wrap, Afterstep puck on belt. Dark charcoal backdrop with subtle muted forest-green Holdfast tint. No text/logos/patches.",
+      "portraitVersion": 1
+    },
+    {
+      "id": "shade",
+      "name": "SHADE",
+      "faction": "holdfast",
+      "side": "defend",
+      "accent": "#6e6a88",
+      "card": {
+        "path": "assets/ui/operators/shade_card.webp",
+        "width": 320,
+        "height": 400,
+        "bytes": 22256,
+        "format": "webp"
+      },
+      "bust": {
+        "path": "assets/ui/operators/shade_bust.webp",
+        "width": 640,
+        "height": 800,
+        "bytes": 50220,
+        "format": "webp"
+      },
+      "original": "assets-src/portraits/shade_full.png",
+      "source": "AI-generated original",
+      "prompt": "Chest-up three-quarter realistic tactical portrait of SHADE (Nadia Volkov), older androgynous Holdfast intel-denial, hood up over balaclava, angular dark visor/goggles, silver-gray hair at hood edge only, violet-charcoal kit with Blindwell beacon. Dark charcoal backdrop with muted violet Holdfast tint. No text/logos/patches.",
+      "portraitVersion": 2
+    }
+  ],
+  "encode": {
+    "card": "320x400 webp 15-25KB",
+    "bust": "640x800 webp 40-60KB",
+    "sourceCommit": "eb4849a"
+  }
+}
